@@ -1,0 +1,22 @@
+{
+	"name": "atom",
+	"version": "0.0.1",
+	"main": "src/index.js",
+	"bin": {
+		"atom": "./bin/main.js"
+	},
+	"config": {},
+	"scripts": {
+		"start": "nodemon --exec node src/interface.js"
+	},
+	"dependencies": {
+		"commander": "^5.0.0",
+		"diont": "github:apratimankur/Diont",
+		"kill-port": "^1.6.0",
+		"nodemon": "^2.0.4",
+		"redis": "^3.0.2",
+		"redis-server": "^1.2.2",
+		"require-all": "^3.0.0",
+		"zeromq": "^5.2.0"
+	}
+}
