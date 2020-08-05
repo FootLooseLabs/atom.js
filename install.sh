@@ -1,4 +1,4 @@
 #!/bin/sh
-sudo ./preinstall.sh
+sudo ./installer/preinstall.sh
 sudo npm install -g .
-sudo ./postinstall.sh
+sudo ./installer/postinstall.sh

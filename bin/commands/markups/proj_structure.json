@@ -1,0 +1,15 @@
+{
+	"structure":[
+		{
+			"name": "src",
+			"children": [
+				{
+					"name": "main.js"
+				}
+			]
+		},
+		{
+			"name": "interface.js"
+		}
+	]
+}

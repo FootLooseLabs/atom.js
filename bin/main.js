@@ -12,8 +12,9 @@ var commands = require('require-all')({
 
 program
   .option('-d, --debug', 'output extra debugging')
-  .option('-i, --init', 'init atom daemon')
-  .option('-s, --signal', 'send signal');
+  .option('-i, --init', 'init atom component')
+  .option('-s, --start', 'start atom nucleus daemon')
+  .option('-ss, --signal', 'send signal');
 
  if (process.argv.length <= 2) {
  	program.help();
@@ -44,7 +45,12 @@ process.on('close', function() {
 
 if (program.debug) console.log(program.opts());
 if (program.init) {
-	console.log('init/run atom.nucleus daemon');
+	console.log('init atom component');
+	// console.log("commands = ", commands);
+	commands.init_atom_component();
+};
+if (program.start) {
+	console.log('start/run atom.nucleus daemon');
 	// console.log("commands = ", commands);
 	commands.start_nucleus_daemon();
 };
