@@ -7,18 +7,23 @@ const REDIS_PORT = 6379;
 const server = new RedisServer(REDIS_PORT);
 
 
+var startRedis = () => {
+	server.open((err) => {
+		if (err != null) {
+	  		throw `Error: ${err}`;
+		}
+		const instance = new AtomNuclues();
+		Object.freeze(instance);
+		console.log("Info: started Atom.Nucleus");
+	});
+}
+
 var startNucluesDaemon = () => {
-	console.log("server is already running : ", server.isRunning);
+	console.log("is server already running? : ", server.isRunning);
 
 	kill(REDIS_PORT).then(() => {
-      	console.info("Info:", "closed port:", REDIS_PORT);
-      	server.open((err) => {
-			if (err != null) {
-		  		throw `Error: ${err}`;
-			}
-			const instance = new AtomNuclues();
-			Object.freeze(instance);
-		});
+      	console.info("Info:", "cleaned port:", REDIS_PORT);
+      	startRedis();
     });
 }
 
@@ -36,5 +41,7 @@ var handleInterrupts = function(signalEv) {
 
 process.on('SIGINT', handleInterrupts);
 process.on('SIGTERM', handleInterrupts);
+
+process.on('exit', handleInterrupts);
 
 module.exports = startNucluesDaemon;

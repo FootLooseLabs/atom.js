@@ -1,6 +1,7 @@
 var zmq = require("zeromq");
 const kill = require('kill-port');
-var diont = require('diont')();
+// var diont = require('diont')();
+var nucleus = require('../atom.nucleus/main');
 
 
 global._instance = null;
@@ -39,7 +40,7 @@ AtomCmpInterface.prototype.__init__ = function() {
   // this.config.port = this.config.port || 8888;
   // this.config.apis = this.config.apis || [];
   this.address = `tcp://${this.config.host}:${this.config.port}`;
-  console.log("Info: ", "Initalised - ", `${this.name}@${this.address}`);
+  console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
 }
 
@@ -48,7 +49,7 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
   _instance = this;
   try{
     this.sock.bindSync(this.address);
-    console.info("Info:", "Interface initalised on port:", this.config.port);
+    console.info("Info:", "Initalised - ", `${this.name}@${this.address}`);
   }catch(e){
     if(e.message.includes("already in use") && this.config.port == this.defaultConfig.port){
       console.log("Error: ", e.message);
@@ -57,7 +58,7 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
         console.info("Info: ", "terminated process that was using the port: ", this.config.port);
         try{
           this.sock.bindSync(this.address);
-          console.info("Info:", "Interface initalised on port:", this.config.port);
+          console.info("Info:", "Initalised - ", `${this.name}@${this.address}`);
         }catch(e){
           throw `Error: ${e.message}`;
         }
@@ -78,7 +79,7 @@ AtomCmpInterface.prototype.addAPI = function(apiName) {
     this.config.apis.push(apiName);
    }
    
-   console.log("Info: ", `API = ${apiName} added at Interface ${this.name}@{this.address}`);
+   console.log("Info: ", `API = ${apiName} available at Atom.Interface:::${this.name}@${this.address}`);
 }
 
 
@@ -87,39 +88,39 @@ AtomCmpInterface.prototype.addMiddleWare = function() {
 }
 
 AtomCmpInterface.prototype.processMsg = function(_message) {
+  console.log("INFO: ", "Processed Msg", JSON.parse(_message));
   return JSON.parse(_message);
 }
 
 AtomCmpInterface.prototype.activate = function() {
   this.sock.on("message", (apiName, message) => {
-    console.log(
+    console.log(`atom.interface:::${component.name} - `,
       "received a message related to:",
       apiName.toString(),
       "containing message:",
       message.toString()
     );
 
-    console.log("component = ", component.name);
-
     // console.log("component = ", component[apiName]);
     try{
       component[apiName](this.processMsg(message));
     }catch(e){
-      throw `Error: ${e.message}`;
+      console.log(`Error: ${e.message}`);
+      return;
     }
   });
 
   process.on('SIGINT', this.handleInterrupts);
   process.on('SIGTERM', this.handleInterrupts);
-  console.log("Info: ", `${this.name} Interface activated`);
+  console.log("Info: ", `Atom.Interface:::${this.name} activated`);
 }
 
 AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
   console.log(`Info: Received ${signalEv}`);
   if(signalEv=="SIGINT"){
-    console.log(`Info: Terminating Interface = ${_instance.name}@${_instance.address}`);
+    console.log(`Info: Terminating Atom.Interface:::${_instance.name}@${_instance.address}`);
     _instance.sock.close();
-    console.info("Info:", `Terminated Interface = ${_instance.name}@${_instance.address}`);
+    console.info("Info:", `Terminated Atom.Interface:::${_instance.name}@${_instance.address}`);
     process.exit();
     // kill(this.config.port).then(() => {
     //   console.info("Info:", "closed port:", this.config.port);
@@ -129,15 +130,16 @@ AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
 
 
 AtomCmpInterface.prototype.advertise = function() {
-  var payload = {
+  var ad = {
     name: this.name,
+    label: this.address,
     host: `${this.config.host}`, // when omitted, defaults to the local IP
     port: `${this.config.port}`,
     apis: this.config.apis
     // any additional information is allowed and will be propagated
   };
-  diont.announceService(payload);
-  console.log("Info: ", "Interface advertised - ", JSON.stringify(payload));
+  nucleus.announceInterface(ad);
+  console.log("Info: ", "Atom.Interface advertised - ", JSON.stringify(ad));
 }
 
 

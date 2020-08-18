@@ -1,6 +1,9 @@
 var zmq = require("zeromq");
 const kill = require('kill-port');
 
+const Nucleus = require('atom').Nucleus;
+
+
 function AtomSignal(options){
    	if(!options){
     	throw "Error: no options specified";
@@ -74,11 +77,38 @@ AtomSignal.prototype._connect = function() {
 AtomSignal.prototype.sendWavelet = function(topic, payload){
 	var payload = payload || this.defaultPayload;
 	try{
-		this.sock.send([topic, JSON.stringify(payload)]);
+		if(typeof payload == "string"){ //case of cli - the json inputs are already string
+			this.sock.send([topic, payload]);
+		}else{
+			console.log("stringifying payload");
+			this.sock.send([topic, JSON.stringify(payload)]);
+		}
 		this.wavelets.push({topic: topic, payload: payload, timestamp: Date.now()});
 		console.log("Info: sent signal wavelet = ", `${payload}`, `to - ${this.address}:::${topic}`);
 	}catch(e){
 		throw `Error: ${e.message}`
+	}
+}
+
+
+AtomSignal.publishToInterface = (interfaceAddress, topic, message) => {
+	console.log("publishing to ", `Atom.Interface:::${interfaceAddress}`, ", topic = ", topic, ", & msg = ", message);
+	var interface = Nuclues.getInterface(serviceName);
+	if(!interface){
+		console.log("404: Not Found - ", `Atom.Interface:::${interfaceAddress}`);
+		return false;
+	}
+	// console.log("connections = ", Publisher.connections);
+	var signal = new AtomSignal({
+	  interface: interface
+	})
+	// var socket = Publisher.connections[serviceName];
+	try{
+		// publishToSocket(socket,interfaceName,message);
+		signal.sendWavelet(apiName, message);
+		return true
+	}catch(e){
+		return false;
 	}
 }
 

@@ -1,17 +1,16 @@
 {
 	"name": "atom",
-	"version": "0.0.2",
+	"version": "0.0.3",
 	"main": "src/index.js",
 	"bin": {
 		"atom": "./bin/main.js"
 	},
 	"config": {},
 	"scripts": {
-		"start": "nodemon --exec node src/interface.js"
 	},
 	"dependencies": {
 		"commander": "^5.0.0",
-		"diont": "github:apratimankur/Diont",
+		"diont": "file:lib/Diont",
 		"folder-structure-generator": "^1.0.5",
 		"kill-port": "^1.6.0",
 		"nodemon": "^2.0.4",

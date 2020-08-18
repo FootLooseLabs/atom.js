@@ -1,7 +1,6 @@
 var diont = require('diont')();
 // var Etcd = require('node-etcd');
 const redis = require("redis");
- 
 
 class AtomNucleus {
 
@@ -38,7 +37,7 @@ class AtomNucleus {
 			// etcd.set(serviceInfo.name, serviceInfo);
 			console.log("A new service was announced", serviceInfo.service);
 			// List currently known services
-			this.redisClient.set(`atomInteface__${serviceInfo.service.name}`, "value", serviceInfo.service);
+			this.redisClient.set(`AtomInterface:::${serviceInfo.service.label}`, "value", serviceInfo.service);
 			console.log("All known services", diont.getServiceInfos());
 		});
 
@@ -48,18 +47,24 @@ class AtomNucleus {
 		});	
   	}
 
-  	getAllAdvertisedInterfaces() {
-		this.redisClient.keys("atomInteface__*", function(e, keys){
-		    if(e)console.log(e);
+}
 
-		    keys.forEach(function (key) {
-		        this.redisClient.get(key, function (err, value) {
-		            console.log(value);
-		        });
-		    });
-		});
-	}
 
+AtomNucleus.getAllAdvertisedInterfaces  = () => {
+	this.redisClient.keys("atomInteface__*", function(e, keys){
+	    if(e)console.log(e);
+
+	    keys.forEach(function (key) {
+	        this.redisClient.get(key, function (err, value) {
+	            console.log(value);
+	        });
+	    });
+	});
+}
+
+
+AtomNucleus.announceInterface = (ad)=>{
+	diont.announceService(ad);
 }
 // server.close((err) => {
 //   // The associated Redis server is now closed.

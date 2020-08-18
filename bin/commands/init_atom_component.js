@@ -8,7 +8,8 @@ var jsonStructure = require('./markups/proj_structure.json');
 const readline = require("readline");
 const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout
+    output: process.stdout,
+    terminal: false
 })
 .on('SIGINT', () => process.emit('SIGINT'))
 .on('SIGTERM', () => process.emit('SIGTERM'));
