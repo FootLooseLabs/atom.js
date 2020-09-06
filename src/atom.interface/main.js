@@ -29,7 +29,10 @@ const BASE_LEXICON = {
     };
   },
   "Response": class Lexicon extends lexeme {
-    static schema = {};
+    static schema = {
+      "op": null,
+      "result": null
+    };
   }
 };
 
@@ -154,7 +157,7 @@ AtomCmpInterface.prototype.activate = function() {
       }
       // console.log("Inflected Form: ", inflection.get());
       var result = component[_lexemeName](inflection.get());
-      var response = this.config.lexicon["Response"].inflect(result);
+      var response = this.config.lexicon["Response"].inflect({"op": `${this.name}:::${_lexemeName}`, "result": result});
 
       if(inflection.get().sender && inflection.get().sender.port){
         console.log("sender found: ", inflection.get().sender);
