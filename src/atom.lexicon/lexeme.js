@@ -4,20 +4,24 @@ class Lexeme {
     static schema = {};
 
     constructor(info) {
-        this.info = {...this.constructor.schema,...info}
+        this.info = {...this.constructor.schema,...info};
     }
 
 
-    inflection(info) { //can be extended in child classes inheriting from this parent; *inflection function must return boolean value;
-        console.log("lexeme: default inflection");
-        return true;
+    static inflection(info) { //can be extended in child classes inheriting from this parent; *inflection function must return boolean value;
+        // console.log("lexeme: default inflection");
+        if(typeof info == "string"){
+            return JSON.parse(info);
+        }
+        return info;
     }
 
     static inflect(info) {
-        console.log("inflecting Lexeme");
+        // console.log("inflecting Lexeme - ", info);
         var inflection = false;
         try{
             var inflection = this.inflection(info);
+            // console.log("inflection = ", inflection);
         }catch(e){
             console.log("Error: lexeme inflection failed - ", e);
             return;
@@ -27,7 +31,11 @@ class Lexeme {
             return;
         }
 
-        return new this(info); //if inflection is not false
+        return new this(inflection); //if inflection is not false
+    }
+
+    get() {
+        return this.info;
     }
 
     hasKey(keyString) {

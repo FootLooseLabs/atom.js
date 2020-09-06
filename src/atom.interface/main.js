@@ -2,9 +2,37 @@ var zmq = require("zeromq");
 const kill = require('kill-port');
 // var diont = require('diont')();
 var nucleus = require('../atom.nucleus/main');
+var lexeme = require('../atom.lexicon/main');
+var signal = require('../atom.signal/main');
 
 
 global._instance = null;
+
+
+// const PRIVATE_LEXICON = {
+//   "Response": class Lexicon extends lexeme {
+//     static schema = {};
+//   }
+// }
+
+const BASE_LEXICON = {
+  "GetIntro": class Lexicon extends lexeme {
+    static schema = {
+      "sender": {
+        "port": null
+      }
+    };
+  },
+  "Update": class Lexicon extends lexeme {
+    static schema = {
+      "sender": null
+    };
+  },
+  "Response": class Lexicon extends lexeme {
+    static schema = {};
+  }
+};
+
 
 function AtomCmpInterface (options){
   if (typeof component == 'undefined') {
@@ -23,7 +51,7 @@ function AtomCmpInterface (options){
   this.defaultConfig = {
     host: "127.0.0.1",
     port: 7993,
-    apis: []
+    lexicon: {}
   }
 
   this.name = options.name;
@@ -36,9 +64,24 @@ function AtomCmpInterface (options){
 
 AtomCmpInterface.prototype.__init__ = function() {
   this.config = {...this.defaultConfig, ...this.config};
+  this.config.lexicon = {...BASE_LEXICON , ...this.config.lexicon}
+
+  component.GetIntro = () => {
+    var result = Object.keys(this.config.lexicon).map((_lexemeName)=>{
+      return {name: _lexemeName, lexeme: this.config.lexicon[_lexemeName] ? this.config.lexicon[_lexemeName].schema : null}
+    })
+
+    console.log("GetIntro: ", result);
+    return result;
+  }
+
+  component.Update = (info) => {
+    console.log("Update: ", info);
+    return info;
+  }
   // this.config.host = this.config.host || "127.0.0.1";
   // this.config.port = this.config.port || 8888;
-  // this.config.apis = this.config.apis || [];
+  // this.config.lexicon = this.config.lexicon || [];
   this.address = `tcp://${this.config.host}:${this.config.port}`;
   console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
@@ -67,19 +110,19 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
       throw `Error: ${e.message}`;
     }
   }
-  this.config.apis.forEach((apiName)=>{
-    this.addAPI(apiName);
+  Object.keys(this.config.lexicon).forEach((_lexemeName)=>{
+    this.addLexeme(_lexemeName, this.config.lexicon[_lexemeName]);
   })
 }
 
-AtomCmpInterface.prototype.addAPI = function(apiName) {
-   this.sock.subscribe(`${apiName}`);
+AtomCmpInterface.prototype.addLexeme = function(_lexemeName, _lexemeDef) {
+   this.sock.subscribe(`${_lexemeName}`);
 
-   if(!this.config.apis.includes(apiName)){ //case when this method is directly called
-    this.config.apis.push(apiName);
+   if(!Object.keys(this.config.lexicon).includes(_lexemeName)){ //case when this method is directly called
+    this.config.lexicon[_lexemeName] = _lexemeDef;
    }
    
-   console.log("Info: ", `API = ${apiName} available at Atom.Interface:::${this.name}@${this.address}`);
+   console.log("Info: ", `Lexeme = ${_lexemeName} available at Atom.Interface:::${this.name}@${this.address}`);
 }
 
 
@@ -93,17 +136,31 @@ AtomCmpInterface.prototype.processMsg = function(_message) {
 }
 
 AtomCmpInterface.prototype.activate = function() {
-  this.sock.on("message", (apiName, message) => {
-    console.log(`atom.interface:::${component.name} - `,
+  this.sock.on("message", (_lexemeName, message) => {
+    console.log(`Atom.Interface:::${_instance.name}@${this.address} - `,
       "received a message related to:",
-      apiName.toString(),
+      _lexemeName.toString(),
       "containing message:",
       message.toString()
     );
 
-    // console.log("component = ", component[apiName]);
+    // console.log("component = ", component[_lexemeName]);
     try{
-      component[apiName](this.processMsg(message));
+      // component[_lexemeName](this.processMsg(message));
+      var inflection = this.config.lexicon[_lexemeName].inflect(message.toString());
+      if(!inflection){
+        console.log(`Error: Inflected form is invalid`);
+        return;
+      }
+      // console.log("Inflected Form: ", inflection.get());
+      var result = component[_lexemeName](inflection.get());
+      var response = this.config.lexicon["Response"].inflect(result);
+
+      if(inflection.get().sender && inflection.get().sender.port){
+        console.log("sender found: ", inflection.get().sender);
+        var _signal = new signal(inflection.get().sender);
+        _signal.sendWavelet("Update",response.get());
+      }
     }catch(e){
       console.log(`Error: ${e.message}`);
       return;
@@ -135,7 +192,7 @@ AtomCmpInterface.prototype.advertise = function() {
     label: this.address,
     host: `${this.config.host}`, // when omitted, defaults to the local IP
     port: `${this.config.port}`,
-    apis: this.config.apis
+    lexicon: this.config.lexicon
     // any additional information is allowed and will be propagated
   };
   nucleus.announceInterface(ad);
@@ -154,7 +211,7 @@ AtomCmpInterface.prototype.advertiseAndActivate = function() {
 
 // AtomCmpInterface.config = {
 //   port: "3333",
-//   apis: ["createOrUpdateUser", "getUsers", "addAPI"],
+//   lexicon: ["createOrUpdateUser", "getUsers", "addLexeme"],
 
 //   outlet: {
 //     port : "3334",

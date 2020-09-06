@@ -3,6 +3,8 @@ const kill = require('kill-port');
 
 const Nucleus = require('atom').Nucleus;
 
+// const Nucleus = require('../atom.nucleus/main');
+
 
 function AtomSignal(options){
    	if(!options){
@@ -77,13 +79,12 @@ AtomSignal.prototype._connect = function() {
 AtomSignal.prototype.sendWavelet = function(topic, payload){
 	var payload = payload || this.defaultPayload;
 	try{
-		if(typeof payload == "string"){ //case of cli - the json inputs are already string
-			this.sock.send([topic, payload]);
-		}else{
+		if(typeof payload != "string"){ //case of cli - the json inputs are already string
 			console.log("stringifying payload");
-			this.sock.send([topic, JSON.stringify(payload)]);
+			payload = JSON.stringify(payload);
 		}
-		this.wavelets.push({topic: topic, payload: payload, timestamp: Date.now()});
+		this.sock.send([topic, payload]);
+		this.wavelets.push({"topic": topic, "payload": payload, "timestamp": Date.now()});
 		console.log("Info: sent signal wavelet = ", `${payload}`, `to - ${this.address}:::${topic}`);
 	}catch(e){
 		throw `Error: ${e.message}`
@@ -93,7 +94,11 @@ AtomSignal.prototype.sendWavelet = function(topic, payload){
 
 AtomSignal.publishToInterface = (interfaceAddress, topic, message) => {
 	console.log("publishing to ", `Atom.Interface:::${interfaceAddress}`, ", topic = ", topic, ", & msg = ", message);
-	var interface = Nuclues.getInterface(serviceName);
+	if(!interfaceAddress){
+		console.log("Error:", "No interface address provided");
+		return;
+	}
+	var interface = Nucleus.getInterface(serviceName);
 	if(!interface){
 		console.log("404: Not Found - ", `Atom.Interface:::${interfaceAddress}`);
 		return false;
@@ -105,7 +110,7 @@ AtomSignal.publishToInterface = (interfaceAddress, topic, message) => {
 	// var socket = Publisher.connections[serviceName];
 	try{
 		// publishToSocket(socket,interfaceName,message);
-		signal.sendWavelet(apiName, message);
+		signal.sendWavelet(topic, message);
 		return true
 	}catch(e){
 		return false;
