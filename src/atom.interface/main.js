@@ -70,10 +70,7 @@ AtomCmpInterface.prototype.__init__ = function() {
   this.config.lexicon = {...BASE_LEXICON , ...this.config.lexicon}
 
   component.GetIntro = () => {
-    var result = Object.keys(this.config.lexicon).map((_lexemeName)=>{
-      return {name: _lexemeName, lexeme: this.config.lexicon[_lexemeName] ? this.config.lexicon[_lexemeName].schema : null}
-    })
-
+    var result = this.getSerialisedLexicon();
     console.log("GetIntro: ", result);
     return result;
   }
@@ -92,6 +89,14 @@ AtomCmpInterface.prototype.__init__ = function() {
 
 AtomCmpInterface.prototype._initialiseSocket = function() {
   this.sock = zmq.socket("sub");
+
+  // this.sock.on('close', function(...toto) {
+  //   console.log('Info: ',this.address,' interface closed');
+  // });
+  // this.sock.on('close_error', function(...toto) {
+  //   console.log('Error: ',this.address,' error while closing interface');
+  // });
+
   _instance = this;
   try{
     this.sock.bindSync(this.address);
@@ -115,6 +120,12 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
   }
   Object.keys(this.config.lexicon).forEach((_lexemeName)=>{
     this.addLexeme(_lexemeName, this.config.lexicon[_lexemeName]);
+  })
+}
+
+AtomCmpInterface.prototype.getSerialisedLexicon = function(){
+  return Object.keys(this.config.lexicon).map((_lexemeName)=>{
+    return {name: _lexemeName, lexeme: this.config.lexicon[_lexemeName] ? this.config.lexicon[_lexemeName].schema : null}
   })
 }
 
@@ -150,6 +161,12 @@ AtomCmpInterface.prototype.activate = function() {
     // console.log("component = ", component[_lexemeName]);
     try{
       // component[_lexemeName](this.processMsg(message));
+
+      if(!component[_lexemeName]){
+        console.log(`Error: Invalid Msg`); //in case of calling 'Response' topic.
+        return;
+      }
+
       var inflection = this.config.lexicon[_lexemeName].inflect(message.toString());
       if(!inflection){
         console.log(`Error: Inflected form is invalid`);
@@ -177,11 +194,14 @@ AtomCmpInterface.prototype.activate = function() {
 
 AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
   console.log(`Info: Received ${signalEv}`);
-  if(signalEv=="SIGINT"){
+  if(signalEv=="SIGINT" && !_instance.ended){ //without _instance.eneded multiple (3) SIGINTs are received.
     console.log(`Info: Terminating Atom.Interface:::${_instance.name}@${_instance.address}`);
-    _instance.sock.close();
-    console.info("Info:", `Terminated Atom.Interface:::${_instance.name}@${_instance.address}`);
-    process.exit();
+    _instance.renounce();
+    setTimeout(()=>{
+      console.info("Info:", `Terminated Atom.Interface:::${_instance.name}@${_instance.address}`);
+      process.exit();
+    },1000);
+    
     // kill(this.config.port).then(() => {
     //   console.info("Info:", "closed port:", this.config.port);
     // });
@@ -190,22 +210,33 @@ AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
 
 
 AtomCmpInterface.prototype.advertise = function() {
-  var ad = {
+  this.ad = {
     name: this.name,
-    label: this.address,
+    label: `Atom.Interface:::${this.name}`,
+    address: `Atom.Interface:::${this.address}`,
     host: `${this.config.host}`, // when omitted, defaults to the local IP
     port: `${this.config.port}`,
-    lexicon: this.config.lexicon
+    lexicon: this.getSerialisedLexicon()
     // any additional information is allowed and will be propagated
   };
-  nucleus.announceInterface(ad);
-  console.log("Info: ", "Atom.Interface advertised - ", JSON.stringify(ad));
+  nucleus.announceInterface(this.ad);
+  console.log("Info: ", "Atom.Interface advertised - ", JSON.stringify(this.ad));
 }
 
 
 AtomCmpInterface.prototype.advertiseAndActivate = function() {
   this.advertise();
   this.activate();
+}
+
+
+AtomCmpInterface.prototype.renounce = function() {
+  nucleus.renounceInterface(this.ad);
+  try{
+    _instance.sock.close();
+  }catch(e){
+  } 
+  this.ended = true;
 }
 
 // var component = require("./src/main.js");

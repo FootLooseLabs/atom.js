@@ -1,17 +1,16 @@
 var zmq = require("zeromq");
 const kill = require('kill-port');
 
-const Nucleus = require('atom').Nucleus;
-
-// const Nucleus = require('../atom.nucleus/main');
+// const Nucleus = require('atom').Nucleus;
+const Nucleus = require('../atom.nucleus/main');
 
 
 function AtomSignal(options){
    	if(!options){
     	throw "Error: no options specified";
    	}
-   	if(!options.port){
-    	throw "Error: no Port specified in options";
+   	if(!options.interface && !options.port){
+    	throw "Error: either Interface Spec or Port needs to be specified (missing both in options)";
    	}
 
    	this.defaultPayload = {
@@ -19,6 +18,8 @@ function AtomSignal(options){
    	}
 
 	this.sock = zmq.socket("pub");
+
+	this.interface = options.interface;
 	this.port = options.port;
 	this.host = options.host;
 
@@ -36,7 +37,12 @@ function AtomSignal(options){
 
 
 AtomSignal.prototype.__init__ = function() {
-	this.host = this.host || "127.0.0.1";
+	if(this.interface){
+		this.host = this.interface.host;
+		this.port = this.interface.port;
+	}else{
+		this.host = this.host || "127.0.0.1";
+	}
 	this.address = `tcp://${this.host}:${this.port}`;
 	this._connect();
 }
@@ -92,29 +98,59 @@ AtomSignal.prototype.sendWavelet = function(topic, payload){
 }
 
 
-AtomSignal.publishToInterface = (interfaceAddress, topic, message) => {
-	console.log("publishing to ", `Atom.Interface:::${interfaceAddress}`, ", topic = ", topic, ", & msg = ", message);
-	if(!interfaceAddress){
-		console.log("Error:", "No interface address provided");
+AtomSignal.publishToInterface = async (interfaceLabel, message) => {
+	if(!interfaceLabel){
+		console.log("Error:", "No interface label provided");
 		return;
 	}
-	var interface = Nucleus.getInterface(serviceName);
+
+	var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
+	
+	var [interfaceAddress, topic] = interfaceLabel.split(":::");
+
+	interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
+
+
+	console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message);
+
+	var interface = await Nucleus.getInterface(interfaceAddress);
+
 	if(!interface){
-		console.log("404: Not Found - ", `Atom.Interface:::${interfaceAddress}`);
-		return false;
+		status.error = "404: Not Found - ", `${interfaceAddress}`;
+		status.statusCode = -1;
+		return status;
 	}
+	try{
+		var interfaceSpec = JSON.parse(interface);
+	}catch(e){
+		console.log("Error: Atom.Signal: error parsing interfaceSpec - ", e);
+		return;
+	}
+	// console.log("\n-------------------------\n");
+	// console.log("INTERFACE === ", JSON.parse(interface).name);
+	// console.log("\n-------------------------\n");
 	// console.log("connections = ", Publisher.connections);
 	var signal = new AtomSignal({
-	  interface: interface
+	  interface: interfaceSpec
 	})
 	// var socket = Publisher.connections[serviceName];
-	try{
-		// publishToSocket(socket,interfaceName,message);
-		signal.sendWavelet(topic, message);
-		return true
-	}catch(e){
-		return false;
-	}
+	setTimeout(()=>{ 
+	// without setTimeout the socket is not ready by the time sendWavelet is fired 
+	// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
+	// this approach is unreliable - tba a reliable approach.
+		try{
+			// publishToSocket(socket,interfaceName,message);
+			signal.sendWavelet(topic, message);
+			status.error = false;
+			status.message = "signal sent";
+			status.statusCode = 1;
+		}catch(e){
+			status.error = e;
+			status.statusCode = -1;
+		}
+	},100);
+
+	return status;
 }
 
 

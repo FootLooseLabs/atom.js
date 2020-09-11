@@ -1,13 +1,12 @@
 {
 	"name": "atom",
-	"version": "0.0.3",
+	"version": "0.0.4",
 	"main": "src/index.js",
 	"bin": {
 		"atom": "./bin/main.js"
 	},
 	"config": {},
-	"scripts": {
-	},
+	"scripts": {},
 	"dependencies": {
 		"commander": "^5.0.0",
 		"diont": "file:lib/Diont",
