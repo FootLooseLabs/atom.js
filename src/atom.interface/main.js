@@ -150,7 +150,7 @@ AtomCmpInterface.prototype.processMsg = function(_message) {
 }
 
 AtomCmpInterface.prototype.activate = function() {
-  this.sock.on("message", (_lexemeName, message) => {
+  this.sock.on("message", async (_lexemeName, message) => {
     console.log(`Atom.Interface:::${_instance.name}@${this.address} - `,
       "received a message related to:",
       _lexemeName.toString(),
@@ -173,13 +173,30 @@ AtomCmpInterface.prototype.activate = function() {
         return;
       }
       // console.log("Inflected Form: ", inflection.get());
-      var result = component[_lexemeName](inflection.get());
+      var result = await component[_lexemeName](inflection.get());
+
       var response = this.config.lexicon["Response"].inflect({"op": `${this.name}:::${_lexemeName}`, "result": result});
 
-      if(inflection.get().sender && inflection.get().sender.port){
-        console.log("sender found: ", inflection.get().sender);
-        var _signal = new signal(inflection.get().sender);
-        _signal.sendWavelet("Update",response.get());
+      // if(inflection.get().sender && inflection.get().sender.port){
+      console.log("Inflected Form = ", inflection.get());
+      if(inflection.get().sender){
+        let sender = inflection.get().sender;
+
+        if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
+          sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
+        }
+
+        console.log("Atom.Interface: signal sender specified: ", sender);
+        let respStatus = await signal.publishToInterface(`${sender}`, response.get());
+        console.log("Atom.Interface: Signal Update: ", respStatus);
+
+        // p.then((respStatus) => {
+        //   console.log("Atom.Interface: Signal Update: ", respStatus);
+        // }, (err) => {
+        //   console.log("Atom.Interface: Signal Error: ", err);
+        // });
+        // var _signal = new signal(inflection.get().sender);
+        // _signal.sendWavelet("Update",response.get());
       }
     }catch(e){
       console.log(`Error: ${e.message}`);

@@ -99,58 +99,68 @@ AtomSignal.prototype.sendWavelet = function(topic, payload){
 
 
 AtomSignal.publishToInterface = async (interfaceLabel, message) => {
-	if(!interfaceLabel){
-		console.log("Error:", "No interface label provided");
-		return;
-	}
 
-	var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
-	
-	var [interfaceAddress, topic] = interfaceLabel.split(":::");
+	return new Promise(async (resolve, reject)=>{
 
-	interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
+		var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
 
-
-	console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message);
-
-	var interface = await Nucleus.getInterface(interfaceAddress);
-
-	if(!interface){
-		status.error = "404: Not Found - ", `${interfaceAddress}`;
-		status.statusCode = -1;
-		return status;
-	}
-	try{
-		var interfaceSpec = JSON.parse(interface);
-	}catch(e){
-		console.log("Error: Atom.Signal: error parsing interfaceSpec - ", e);
-		return;
-	}
-	// console.log("\n-------------------------\n");
-	// console.log("INTERFACE === ", JSON.parse(interface).name);
-	// console.log("\n-------------------------\n");
-	// console.log("connections = ", Publisher.connections);
-	var signal = new AtomSignal({
-	  interface: interfaceSpec
-	})
-	// var socket = Publisher.connections[serviceName];
-	setTimeout(()=>{ 
-	// without setTimeout the socket is not ready by the time sendWavelet is fired 
-	// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
-	// this approach is unreliable - tba a reliable approach.
-		try{
-			// publishToSocket(socket,interfaceName,message);
-			signal.sendWavelet(topic, message);
-			status.error = false;
-			status.message = "signal sent";
-			status.statusCode = 1;
-		}catch(e){
-			status.error = e;
-			status.statusCode = -1;
+		if(!interfaceLabel){
+			status.error = "Error:", "No interface label provided";
+			console.log(status.error);
+			reject();
 		}
-	},100);
+		
+		var [interfaceAddress, topic] = interfaceLabel.split(":::");
 
-	return status;
+		interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
+
+
+		console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message);
+
+		var interface = await Nucleus.getInterface(interfaceAddress);
+
+		if(!interface){
+			status.error = "404: Not Found - ", `${interfaceAddress}`;
+			status.statusCode = -1;
+			console.log(status.error);
+			reject(status);
+		}
+		try{
+			var interfaceSpec = JSON.parse(interface);
+		}catch(e){
+			status.error = "Error: Atom.Signal: error parsing interfaceSpec - ", e;
+			status.statusCode = -1;
+			console.log(status.error);
+			reject(status);
+		}
+		// console.log("\n-------------------------\n");
+		// console.log("INTERFACE === ", JSON.parse(interface).name);
+		// console.log("\n-------------------------\n");
+		// console.log("connections = ", Publisher.connections);
+		var signal = new AtomSignal({
+		  interface: interfaceSpec
+		})
+		// var socket = Publisher.connections[serviceName];
+		setTimeout(()=>{ 
+		// without setTimeout the socket is not ready by the time sendWavelet is fired 
+		// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
+		// this approach is unreliable - tba a reliable approach.
+			try{
+				// publishToSocket(socket,interfaceName,message);
+				signal.sendWavelet(topic, message);
+				status.error = false;
+				status.message = "signal sent";
+				status.statusCode = 1;
+
+				resolve(status)
+			}catch(e){
+				status.error = e;
+				status.statusCode = -1;
+
+				reject(status)
+			}
+		},100);
+	});
 }
 
 
