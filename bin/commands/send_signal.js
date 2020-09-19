@@ -7,6 +7,9 @@ const rl = readline.createInterface({
 .on('SIGINT', () => process.emit('SIGINT'))
 .on('SIGTERM', () => process.emit('SIGTERM'));
 
+const chalk = require('chalk');
+
+const AtomNucleus = require('atom').Nucleus;
 const AtomSignal = require('atom').Signal; //assumes (as requires) that atom js-sdk is globally installed on the system this is being run
 
 var SignalSpec = {
@@ -33,7 +36,7 @@ var sendWaveletCLI = (_signal) => {
 }
 
 var sendAtomSignalCLI = () => {
-	rl.question("port? ", (portNo) => {
+	rl.question("port?", (portNo) => {
 		SignalSpec.port = portNo;
 		try{
 			var _signal = new AtomSignal(SignalSpec);
@@ -47,8 +50,5 @@ var sendAtomSignalCLI = () => {
 	    process.exit(0);
 	});
 } 
-
-
-
 
 module.exports = sendAtomSignalCLI;

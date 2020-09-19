@@ -14,7 +14,8 @@ program
   .option('-d, --debug', 'output extra debugging')
   .option('-i, --init', 'init atom component')
   .option('-s, --start', 'start atom nucleus daemon')
-  .option('-ss, --signal', 'send signal');
+  .option('-ss, --signal', 'send signal')
+  .option('-sii, --startintrospectiveinterface', 'start introspective interface');
 
  if (process.argv.length <= 2) {
  	program.help();
@@ -58,4 +59,12 @@ if (program.signal) {
 	console.log('cli to send atom signals');
 	// console.log("commands = ", commands);
 	commands.send_signal();
+};
+
+if (program.startintrospectiveinterface) {
+	console.log('\n launching introspective interface \n');
+	console.log('\t - discover & interact with interfaces available in the env \n');
+	console.log('\t - send atom signals \n');
+	// console.log("commands = ", commands);
+	commands.start_introspective_interface();
 };

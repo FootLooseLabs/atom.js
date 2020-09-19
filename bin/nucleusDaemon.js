@@ -4,6 +4,7 @@ const kill = require('kill-port');
 // var Etcd = require('node-etcd');
 const redis = require("redis");
 
+const chalk = require('chalk');
 
 const CONFIG = {
 	REDIS_PORT: 6379,
@@ -34,13 +35,13 @@ var handleAdvertisements = function() {
 		console.log(`Info: Atom.Nucleus: Saving metadata on redis - ${serviceInfo.service.label}`, serviceInfo.service);
 		NucleusDaemon.redisClient.set(`${serviceInfo.service.label}`, JSON.stringify(serviceInfo.service));
 		// console.log("All known interfaces", NucleusDaemon.diont.getServiceInfos());
-		console.log("Info: Atom.Nucleus: A new interface was announced", serviceInfo.service);
+		console.log(chalk.yellow("Info: Atom.Nucleus: A new interface was announced", JSON.stringify(serviceInfo.service)));
 	});
 
 	NucleusDaemon.diont.on("serviceRenounced", function(serviceInfo) {
 		serviceInfo.service.running = false;
 		NucleusDaemon.redisClient.set(`${serviceInfo.service.label}`, JSON.stringify(serviceInfo.service));
-		console.log("Info: Atom.Nucleus: An existing interface was renounced", serviceInfo.service);
+		console.log(chalk.red("Info: Atom.Nucleus: An existing interface was renounced", JSON.stringify(serviceInfo.service)));
 		// console.log("All known interfaces", NucleusDaemon.diont.getServiceInfos());
 	});
 }

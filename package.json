@@ -8,6 +8,7 @@
 	"config": {},
 	"scripts": {},
 	"dependencies": {
+		"chalk": "^4.1.0",
 		"commander": "^5.0.0",
 		"diont": "file:lib/Diont",
 		"folder-structure-generator": "^1.0.5",

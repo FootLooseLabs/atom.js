@@ -56,15 +56,40 @@ const redisClient = redis.createClient();
 // }
 
 
-AtomNucleus.getAllAdvertisedInterfaces  = () => {
-	redisClient.keys("AtomInteface:::*", function(e, keys){
-	    if(e)console.log(e);
+AtomNucleus.getAllAdvertisedInterfaces  = (pattern) => { //unreliable (doesn't return proper results if many keys)
 
-	    keys.forEach(function (key) {
-	        redisClient.get(key, function (err, value) {
-	            console.log(value);
-	        });
-	    });
+	console.log("Info: ", "Discovering Interfaces in the Environment...");
+	// redisClient.get(interfaceAddress, redis.print);
+	// console.log("-------------------------------");
+	var pattern = pattern || 'Atom.Interface:::*';
+	return new Promise((resolve, reject)=>{
+		var cursor = '0';
+
+		function scan () {
+		    redisClient.scan(
+		        cursor,
+		        'MATCH', pattern,
+		        'COUNT', '100',
+		        function (err, res) {
+		            if (err) {
+		            	console.log("Error Discovering Interfaces - ", err);
+		            	reject(err);
+		            	return;
+		            };
+		            cursor = res[0];
+		            var keys = res[1];
+
+		            if (cursor === '0') {
+		            	console.log('Discovered Interfaces - \n', keys);
+		                resolve(keys);
+		                return;
+		            }
+
+		            return scan();
+		        }
+		    );
+		}
+		scan();
 	});
 }
 

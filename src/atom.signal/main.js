@@ -4,6 +4,7 @@ const kill = require('kill-port');
 // const Nucleus = require('atom').Nucleus;
 const Nucleus = require('../atom.nucleus/main');
 
+const chalk = require('chalk');
 
 function AtomSignal(options){
    	if(!options){

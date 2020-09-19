@@ -1,5 +1,7 @@
 var zmq = require("zeromq");
 const kill = require('kill-port');
+const chalk = require('chalk');
+
 // var diont = require('diont')();
 var nucleus = require('../atom.nucleus/main');
 var lexeme = require('../atom.lexicon/main');
@@ -31,6 +33,7 @@ const BASE_LEXICON = {
   "Response": class Lexicon extends lexeme {
     static schema = {
       "op": null,
+      "label": null,
       "result": null
     };
   }
@@ -136,7 +139,7 @@ AtomCmpInterface.prototype.addLexeme = function(_lexemeName, _lexemeDef) {
     this.config.lexicon[_lexemeName] = _lexemeDef;
    }
    
-   console.log("Info: ", `Lexeme = ${_lexemeName} available at Atom.Interface:::${this.name}@${this.address}`);
+   console.log(chalk.blue("Info: ", `Lexeme = ${_lexemeName} available at Atom.Interface:::${this.name}@${this.address}`));
 }
 
 
@@ -163,7 +166,12 @@ AtomCmpInterface.prototype.activate = function() {
       // component[_lexemeName](this.processMsg(message));
 
       if(!component[_lexemeName]){
-        console.log(`Error: Invalid Msg`); //in case of calling 'Response' topic.
+        console.log(`Error: Invalid Msg - no such component function`); //in case of calling 'Response' topic.
+        return;
+      }
+
+      if(!this.config.lexicon[_lexemeName]){
+        console.log(`Error: Invalid Msg - no such lexeme = `, _lexemeName); //in case of calling 'Response' topic.
         return;
       }
 
@@ -172,15 +180,21 @@ AtomCmpInterface.prototype.activate = function() {
         console.log(`Error: Inflected form is invalid`);
         return;
       }
-      // console.log("Inflected Form: ", inflection.get());
-      var result = await component[_lexemeName](inflection.get());
 
-      var response = this.config.lexicon["Response"].inflect({"op": `${this.name}:::${_lexemeName}`, "result": result});
+      console.log("Inflected Form: ", inflection.get());
+
+      var result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
 
       // if(inflection.get().sender && inflection.get().sender.port){
-      console.log("Inflected Form = ", inflection.get());
+      
       if(inflection.get().sender){
         let sender = inflection.get().sender;
+
+        let response = this.config.lexicon["Response"].inflect({
+          "op": `${this.name}:::${_lexemeName}`, 
+          "result": result,
+          "label": component[_lexemeName].label
+        });
 
         if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
           sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
@@ -237,7 +251,7 @@ AtomCmpInterface.prototype.advertise = function() {
     // any additional information is allowed and will be propagated
   };
   nucleus.announceInterface(this.ad);
-  console.log("Info: ", "Atom.Interface advertised - ", JSON.stringify(this.ad));
+  console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", JSON.stringify(this.ad)));
 }
 
 
