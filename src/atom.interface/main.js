@@ -183,17 +183,25 @@ AtomCmpInterface.prototype.activate = function() {
 
       console.log("Inflected Form: ", inflection.get());
 
-      var result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
-
+      var result, error, message;
+      try{
+        result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
+        message = result.message;
+        delete result.message;
+      }catch(err){
+        error = err.message;
+        message = `Operation Failed`;
+      }
       // if(inflection.get().sender && inflection.get().sender.port){
       
       if(inflection.get().sender){
         let sender = inflection.get().sender;
-
         let response = this.config.lexicon["Response"].inflect({
           "op": `${this.name}:::${_lexemeName}`, 
-          "result": result,
-          "label": component[_lexemeName].label
+          "label": this.config.lexicon[_lexemeName].label,
+          "message": message,
+          "error": error,
+          "result": result
         });
 
         if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
