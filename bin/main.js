@@ -15,7 +15,8 @@ program
   .option('-i, --init', 'init atom component')
   .option('-s, --start', 'start atom nucleus daemon')
   .option('-ss, --signal', 'send signal')
-  .option('-sii, --startintrospectiveinterface', 'start introspective interface');
+  .option('-sii, --startintrospectiveinterface', 'start introspective interface')
+  .option('-senv, --startenv <config-path>', 'start atom environment');
 
  if (process.argv.length <= 2) {
  	program.help();
@@ -67,4 +68,11 @@ if (program.startintrospectiveinterface) {
 	console.log('\t - send atom signals \n');
 	// console.log("commands = ", commands);
 	commands.start_introspective_interface();
+};
+
+
+if (program.startenv) {
+	console.log('starting atom env - ', program.opts().startenv.toString());
+	// console.log("commands = ", commands);
+	commands.start_env(program.opts().startenv.toString());
 };

@@ -1,5 +1,8 @@
+const path = require("path");
 const readline = require("readline");
-const rl = readline.createInterface({
+const execa = require('execa');
+
+const introspectiveInterfaceCli = readline.createInterface({
     input: process.stdin,
     output: process.stdout,
     terminal: false
@@ -12,47 +15,51 @@ const chalk = require('chalk');
 const AtomNucleus = require('atom').Nucleus;
 const AtomSignal = require('atom').Signal; //assumes (as requires) that atom js-sdk is globally installed on the system this is being run
 
-const AtomInterface = require('atom').Interface;
+const IntrospectiveInterfaceSpecs = require("../introspective_interface_specs");
+var _InterfaceSubprocess;
 
-// var msgCount = 0;
-
-const InterfaceSpecs = {
-  name: "@atom/introspective.interface",
-  config: {
-    port: 6667,
-    lexicon: {}
-  }
-}
-
-global.component = {};
-
-const _interface = new AtomInterface(InterfaceSpecs);
-_interface.advertiseAndActivate();
-
-var sendMessageCLI = (interfaceLabel) => {
+var promptSendMessageCLI = (interfaceLexemeLabel) => {
 	console.log("\n");
-	rl.question("message? ", (message) => {
-		message.sender = InterfaceSpecs.name;
-		var signalStatus = AtomSignal.publishToInterface(interfaceLabel);
-		console.log("SignalStatis = ", signalStatus);
-		sendMessageCLI(interfaceLabel);
+	introspectiveInterfaceCli.question("message? ", async (message) => {
+		message.sender = IntrospectiveInterfaceSpecs.name;
+		var signalStatus = await AtomSignal.publishToInterface(interfaceLexemeLabel, message);
+		console.log("SignalStatuss = ", signalStatus);
+		promptSendMessageCLI(interfaceLexemeLabel);
 	});
 }
 
-var selectInterfaceCLI = () => {
-	rl.question("Interface to interact with?", (interfaceLabel) => {
-		sendMessageCLI(interfaceLabel);
+var promptSelectLexemeCLI = async (interfaceLabel) => {
+	console.log("\n\n");
+	let message = {sender: IntrospectiveInterfaceSpecs.name}
+	var signalStatus = await AtomSignal.publishToInterface(`${interfaceLabel}:::GetIntro`, message);
+	await _InterfaceSubprocess.stdout.pipe(process.stdout);
+	console.log("\n");
+	// console.log("SignalStatus = ", signalStatus);
+	introspectiveInterfaceCli.question("Select a Lexeme for communication from the above list? ", (lexemeLabel) => {
+		promptSendMessageCLI(`${interfaceLabel}:::${lexemeLabel}`);
+	});
+}
+
+var promptSelectInterfaceCLI = async () => {
+	var interfaces = await AtomNucleus.getAllInterfaceActivity();
+	console.log("Interfaces: ", interfaces);
+
+	introspectiveInterfaceCli.question("Interface to interact with (from the list above) ?", (interfaceLabel) => {
+		promptSelectLexemeCLI(interfaceLabel);
 	});
 }
 
 var startIntrospectiveInterfaceCLI = async () => {
-	await AtomNucleus.getAllAdvertisedInterfaces();
+	// _IntrospectiveInterface = require('../introspective_interface');
+	// _IntrospectiveInterface.advertiseAndActivate();
+	_InterfaceSubprocess = execa('nodemon', ['--exec','node',`${path.join(__dirname, '../introspective_interface_daemon.js')}`], {stdio: 'pipe'})
+	console.log("started introspective interface");
 
-	selectInterfaceCLI();
+	promptSelectInterfaceCLI();
 
-	rl.on("close", function() {
+	introspectiveInterfaceCli.on("close", function() {
 	    process.exit(0);
-	});	
+	});
 }
 
 

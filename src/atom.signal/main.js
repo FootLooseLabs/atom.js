@@ -109,6 +109,7 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 			status.error = "Error:", "No interface label provided";
 			console.log(status.error);
 			reject();
+			return;
 		}
 		
 		var [interfaceAddress, topic] = interfaceLabel.split(":::");
@@ -125,6 +126,7 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 			status.statusCode = -1;
 			console.log(status.error);
 			reject(status);
+			return;
 		}
 		try{
 			var interfaceSpec = JSON.parse(interface);
@@ -133,6 +135,7 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 			status.statusCode = -1;
 			console.log(status.error);
 			reject(status);
+			return;
 		}
 		// console.log("\n-------------------------\n");
 		// console.log("INTERFACE === ", JSON.parse(interface).name);
@@ -153,12 +156,14 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 				status.message = "signal sent";
 				status.statusCode = 1;
 
-				resolve(status)
+				resolve(status);
+				return;
 			}catch(e){
 				status.error = e;
 				status.statusCode = -1;
 
-				reject(status)
+				reject(status);
+				return;
 			}
 		},100);
 	});

@@ -11,12 +11,18 @@
 		"chalk": "^4.1.0",
 		"commander": "^5.0.0",
 		"diont": "file:lib/Diont",
+		"execa": "^4.0.3",
 		"folder-structure-generator": "^1.0.5",
+		"ini": "^1.3.5",
 		"kill-port": "^1.6.0",
 		"nodemon": "^2.0.4",
 		"redis": "^3.0.2",
 		"redis-server": "^1.2.2",
 		"require-all": "^3.0.0",
 		"zeromq": "^5.2.0"
+	},
+	"devDependencies": {
+		"babel-cli": "^6.26.0",
+		"babel-preset-es2015": "^6.24.1"
 	}
 }

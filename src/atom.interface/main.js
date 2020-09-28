@@ -59,7 +59,7 @@ function AtomCmpInterface (options){
     port: 7993,
     lexicon: {}
   }
-
+  this.prefix = "Atom.Interface:::";
   this.name = options.name;
   this.config = options.config || {};
   this.sock = null;
@@ -139,7 +139,7 @@ AtomCmpInterface.prototype.addLexeme = function(_lexemeName, _lexemeDef) {
     this.config.lexicon[_lexemeName] = _lexemeDef;
    }
    
-   console.log(chalk.blue("Info: ", `Lexeme = ${_lexemeName} available at Atom.Interface:::${this.name}@${this.address}`));
+   console.log(chalk.blue("Info: ", `Lexeme = ${_lexemeName} available at ${this.prefix}${this.name}@${this.address}`));
 }
 
 
@@ -154,7 +154,7 @@ AtomCmpInterface.prototype.processMsg = function(_message) {
 
 AtomCmpInterface.prototype.activate = function() {
   this.sock.on("message", async (_lexemeName, message) => {
-    console.log(`Atom.Interface:::${_instance.name}@${this.address} - `,
+    console.log(`${this.prefix}${_instance.name}@${this.address} - `,
       "received a message related to:",
       _lexemeName.toString(),
       "containing message:",
@@ -186,8 +186,13 @@ AtomCmpInterface.prototype.activate = function() {
       var result, error, message;
       try{
         result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
-        message = result.message;
-        delete result.message;
+        // console.log("INFO: result = ", result);
+        if(result && result.message){
+          message = result.message;
+          delete result.message;
+        }else{
+          message = "no result received";
+        }
       }catch(err){
         error = err.message;
         message = `Operation Failed`;
@@ -228,16 +233,16 @@ AtomCmpInterface.prototype.activate = function() {
 
   process.on('SIGINT', this.handleInterrupts);
   process.on('SIGTERM', this.handleInterrupts);
-  console.log("Info: ", `Atom.Interface:::${this.name} activated`);
+  console.log("Info: ", `${this.prefix}${this.name} activated`);
 }
 
 AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
   console.log(`Info: Received ${signalEv}`);
   if(signalEv=="SIGINT" && !_instance.ended){ //without _instance.eneded multiple (3) SIGINTs are received.
-    console.log(`Info: Terminating Atom.Interface:::${_instance.name}@${_instance.address}`);
+    console.log(`Info: Terminating ${_instance.prefix}${_instance.name}@${_instance.address}`);
     _instance.renounce();
     setTimeout(()=>{
-      console.info("Info:", `Terminated Atom.Interface:::${_instance.name}@${_instance.address}`);
+      console.info("Info:", `Terminated ${_instance.prefix}:::${_instance.name}@${_instance.address}`);
       process.exit();
     },1000);
     
@@ -251,8 +256,8 @@ AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
 AtomCmpInterface.prototype.advertise = function() {
   this.ad = {
     name: this.name,
-    label: `Atom.Interface:::${this.name}`,
-    address: `Atom.Interface:::${this.address}`,
+    label: `${this.prefix}${this.name}`,
+    address: `${this.prefix}${this.address}`,
     host: `${this.config.host}`, // when omitted, defaults to the local IP
     port: `${this.config.port}`,
     lexicon: this.getSerialisedLexicon()
@@ -264,6 +269,7 @@ AtomCmpInterface.prototype.advertise = function() {
 
 
 AtomCmpInterface.prototype.advertiseAndActivate = function() {
+  process.title = `${this.prefix}${this.name}`;
   this.advertise();
   this.activate();
 }

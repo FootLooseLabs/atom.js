@@ -56,7 +56,7 @@ const redisClient = redis.createClient();
 // }
 
 
-AtomNucleus.getAllAdvertisedInterfaces  = (pattern) => { //unreliable (doesn't return proper results if many keys)
+AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliable (doesn't return proper results if many keys)
 
 	console.log("Info: ", "Discovering Interfaces in the Environment...");
 	// redisClient.get(interfaceAddress, redis.print);
@@ -80,7 +80,9 @@ AtomNucleus.getAllAdvertisedInterfaces  = (pattern) => { //unreliable (doesn't r
 		            var keys = res[1];
 
 		            if (cursor === '0') {
-		            	console.log('Discovered Interfaces - \n', keys);
+		            	if(logLevel>1){
+		            		console.log('Discovered Interfaces - \n', keys);
+		            	}
 		                resolve(keys);
 		                return;
 		            }
@@ -91,6 +93,37 @@ AtomNucleus.getAllAdvertisedInterfaces  = (pattern) => { //unreliable (doesn't r
 		}
 		scan();
 	});
+}
+
+AtomNucleus.getInterfaceInfo = (interfaceLabel) => {
+	return new Promise((resolve, reject) => {
+		redisClient.get(interfaceLabel, function(err, res) {
+			if (err) {
+	        	console.log("Error finding Interface - ", interfaceLabel);
+	        	reject(err);
+	        	return;
+	        };
+	        // console.log("Interface Info: ", JSON.stringify(res));
+	        resolve(res);
+		  	return;
+		});
+	})
+}
+
+AtomNucleus.getAllInterfaceActivity = async (logLevel=1) => { //ISSUE: if improper shutdown/ system shutdown - running status is not updated (running: true still shows true)
+	var interfaceLabels = await AtomNucleus.getAllAdvertisedInterfaces();
+	var interfaceList = [];
+	for (let i = 0; i < interfaceLabels.length; i++) {
+		_interfaceInfo = JSON.parse(await AtomNucleus.getInterfaceInfo(interfaceLabels[i]));
+        interfaceList.push({
+        	"name": _interfaceInfo.name,
+        	"running": _interfaceInfo.running
+        });
+    }
+	// _interfaces.map(async (interfaceLabel) => {
+		
+	// });
+	return interfaceList;
 }
 
 
