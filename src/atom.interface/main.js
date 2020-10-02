@@ -3,7 +3,7 @@ const kill = require('kill-port');
 const chalk = require('chalk');
 
 // var diont = require('diont')();
-var nucleus = require('../atom.nucleus/main');
+process.nucleus = require('../atom.nucleus/main');
 var lexeme = require('../atom.lexicon/main');
 var signal = require('../atom.signal/main');
 
@@ -181,15 +181,15 @@ AtomCmpInterface.prototype.activate = function() {
         return;
       }
 
-      console.log("Inflected Form: ", inflection.get());
+      console.log(`${this.ad.label} Inflected Lexeme: `, inflection.get());
 
       var result, error, message;
       try{
         result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
         // console.log("INFO: result = ", result);
-        if(result && result.message){
-          message = result.message;
-          delete result.message;
+        if(result){
+            message = result.message;
+            delete result.message;
         }else{
           message = "no result received";
         }
@@ -214,8 +214,12 @@ AtomCmpInterface.prototype.activate = function() {
         }
 
         console.log("Atom.Interface: signal sender specified: ", sender);
-        let respStatus = await signal.publishToInterface(`${sender}`, response.get());
-        console.log("Atom.Interface: Signal Update: ", respStatus);
+        try{
+          let respStatus = await signal.publishToInterface(`${sender}`, response.get());
+          console.log("Atom.Interface: Signal Update: ", respStatus);
+        }catch(e){
+          console.log("Atom.Interface signal error - ", e);
+        }
 
         // p.then((respStatus) => {
         //   console.log("Atom.Interface: Signal Update: ", respStatus);
@@ -263,7 +267,7 @@ AtomCmpInterface.prototype.advertise = function() {
     lexicon: this.getSerialisedLexicon()
     // any additional information is allowed and will be propagated
   };
-  nucleus.announceInterface(this.ad);
+  process.nucleus.announceInterface(this.ad);
   console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", JSON.stringify(this.ad)));
 }
 
@@ -276,7 +280,7 @@ AtomCmpInterface.prototype.advertiseAndActivate = function() {
 
 
 AtomCmpInterface.prototype.renounce = function() {
-  nucleus.renounceInterface(this.ad);
+  process.nucleus.renounceInterface(this.ad);
   try{
     _instance.sock.close();
   }catch(e){

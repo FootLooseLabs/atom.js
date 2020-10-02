@@ -12,10 +12,12 @@ const introspectiveInterfaceCli = readline.createInterface({
 
 const chalk = require('chalk');
 
+const ora = require('ora');
+
 const AtomNucleus = require('atom').Nucleus;
 const AtomSignal = require('atom').Signal; //assumes (as requires) that atom js-sdk is globally installed on the system this is being run
 
-const IntrospectiveInterfaceSpecs = require("../introspective_interface_specs");
+const IntrospectiveInterfaceSpecs = require("../daemons/introspective-interface/interface_specs");
 var _InterfaceSubprocess;
 
 var promptSendMessageCLI = (interfaceLexemeLabel) => {
@@ -52,10 +54,16 @@ var promptSelectInterfaceCLI = async () => {
 var startIntrospectiveInterfaceCLI = async () => {
 	// _IntrospectiveInterface = require('../introspective_interface');
 	// _IntrospectiveInterface.advertiseAndActivate();
-	_InterfaceSubprocess = execa('nodemon', ['--exec','node',`${path.join(__dirname, '../introspective_interface_daemon.js')}`], {stdio: 'pipe'})
+	_InterfaceSubprocess = execa('nodemon', ['--exec','node',`${path.join(__dirname, '../daemons/introspective-interface/daemon.js')}`], {stdio: 'inherit'})
+	
 	console.log("started introspective interface");
+	var spinner = ora('please wait for 2s').start();
+	spinner.color = 'yellow';
 
-	promptSelectInterfaceCLI();
+	setTimeout(()=>{ //tba - better way to find out when self (interface) is announced/advertised as well 
+		spinner.stop();
+		promptSelectInterfaceCLI()
+	},2000);
 
 	introspectiveInterfaceCli.on("close", function() {
 	    process.exit(0);

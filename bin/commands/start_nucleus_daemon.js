@@ -1,5 +1,5 @@
-// // const RedisServer = require('redis-server');
-// // const kill = require('kill-port');
+// const RedisServer = require('redis-server');
+// const kill = require('kill-port');
 
 
 const path = require("path");
@@ -8,9 +8,10 @@ const { execSync } = require("child_process");
 
 
 var startNucluesDaemon = () => {
+	process.title = `Atom.Nucleus`;
 	console.log("starting atom.nucleus");
 
-	execSync(`node ${path.join(__dirname, '../nucleusDaemon.js')}`, {stdio: 'inherit'});
+	execSync(`node ${path.join(__dirname, '../daemons/nucleusEnvDaemon.js')}`, {stdio: 'inherit'});
 	console.log("done");
 	// var diont = require('diont')({
 	// 	broadcast: true

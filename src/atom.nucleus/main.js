@@ -1,78 +1,45 @@
+//PENDING - restart all atom.interfaces running - upon Nucleus RESTART
+
 var diont = require('diont')();
 // var Etcd = require('node-etcd');
 const redis = require("redis");
 
+const chalk = require('chalk');
 
-const AtomNucleus = {};
+const AtomNucleus = require("./manageEnv");
 
-const redisClient = redis.createClient();
+AtomNucleus.redisClient = redis.createClient();
 
 
-// class AtomNucleus {
-
-//   	// constructor(){
-// 	  //  if(!AtomNucleus.instance){
-// 	  //    this._data = [];
-// 	  //    AtomNucleus.instance = this;
-// 	  //  }
-
-// 	  //  this.initialise();
-// 	  //  return AtomNucleus.instance;
-//   	// }
-
-//   	static initialise() {
-// 		this.redisClient = redis.createClient();
-		 
-// 		this.redisClient.on("error", function(err) {
-// 		  throw `Error: ${err}`;
-// 		});
-
-// 		this.handleAdvertisements();
-// 		console.log("Info: AtomNucleus setup done");
-//   	}
-
-//   	handleAdvertisements() {
-//   		// ======
-// 		// Listen for announcements and renouncements in services
-// 		// ======
-// 		diont.on("serviceAnnounced", function(serviceInfo) {
-// 			// A service was announced
-// 			// This function triggers for services not yet available in diont.getServiceInfos()
-// 			// serviceInfo is an Object { isOurService : Boolean, service: Object }
-// 			// service.name, service.host and service.port are always filled
-// 			// etcd.set(serviceInfo.name, serviceInfo);
-// 			console.log("A new service was announced", serviceInfo.service);
-// 			// List currently known services
-// 			this.redisClient.set(`AtomInterface:::${serviceInfo.service.label}`, "value", serviceInfo.service);
-// 			console.log("All known services", diont.getServiceInfos());
-// 		});
-
-// 		diont.on("serviceRenounced", function(serviceInfo) {
-// 			console.log("A service was renounced", serviceInfo.service);
-// 			console.log("All known services", diont.getServiceInfos());
-// 		});	
-//   	}
-
-// }
+AtomNucleus.redisClient.on("error", function(err) {
+	console.log(`WARNING: Atom.Nucleus is not running - \n ( to start atom.nuclueus please run: ${chalk.blue("atom -s")} )`);
+});
 
 
 AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliable (doesn't return proper results if many keys)
 
-	console.log("Info: ", "Discovering Interfaces in the Environment...");
-	// redisClient.get(interfaceAddress, redis.print);
+
+	console.log("Atom.Nucleus:::Info: ", "Discovering Interfaces in the Environment...");
+	// AtomNucleus.redisClient.get(interfaceAddress, redis.print);
 	// console.log("-------------------------------");
 	var pattern = pattern || 'Atom.Interface:::*';
 	return new Promise((resolve, reject)=>{
+		if(!AtomNucleus.redisClient.connected){
+			let err = "Atom.Nucleus is not running";
+			reject(err);
+			return;
+		}
+
 		var cursor = '0';
 
 		function scan () {
-		    redisClient.scan(
+		    AtomNucleus.redisClient.scan(
 		        cursor,
 		        'MATCH', pattern,
 		        'COUNT', '100',
 		        function (err, res) {
 		            if (err) {
-		            	console.log("Error Discovering Interfaces - ", err);
+		            	console.log("Atom.Nucleus:::Error Discovering Interfaces - ", err);
 		            	reject(err);
 		            	return;
 		            };
@@ -81,7 +48,7 @@ AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliabl
 
 		            if (cursor === '0') {
 		            	if(logLevel>1){
-		            		console.log('Discovered Interfaces - \n', keys);
+		            		console.log('Atom.Nucleus:::Discovered Interfaces - \n', keys);
 		            	}
 		                resolve(keys);
 		                return;
@@ -96,72 +63,128 @@ AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliabl
 }
 
 AtomNucleus.getInterfaceInfo = (interfaceLabel) => {
+
 	return new Promise((resolve, reject) => {
-		redisClient.get(interfaceLabel, function(err, res) {
+		if(!AtomNucleus.redisClient.connected){
+			let err = "Atom.Nucleus is not running";
+			reject(err);
+			return;
+		}
+		AtomNucleus.redisClient.get(interfaceLabel, function(err, res) {
 			if (err) {
-	        	console.log("Error finding Interface - ", interfaceLabel);
+	        	console.log("Atom.Nucleus:::Error finding Interface - ", interfaceLabel);
 	        	reject(err);
 	        	return;
 	        };
 	        // console.log("Interface Info: ", JSON.stringify(res));
-	        resolve(res);
+	        try{
+	        	let interface = JSON.parse(res);
+	        	resolve(interface);
+	        	return;
+	        }catch(e){
+	        	let err = `found invalid interface description - ${e.message}`
+	        	reject(Error(err));
+	        	return;
+	        }
 		  	return;
 		});
 	})
 }
 
 AtomNucleus.getAllInterfaceActivity = async (logLevel=1) => { //ISSUE: if improper shutdown/ system shutdown - running status is not updated (running: true still shows true)
-	var interfaceLabels = await AtomNucleus.getAllAdvertisedInterfaces();
+	// console.log("getAllInterfaceActivity called 0");
+
+	// if(!AtomNucleus.redisClient.connected){
+	// 	return;
+	// }
+
+	// console.log("getAllInterfaceActivity called 1");
 	var interfaceList = [];
+
+	try{
+		var interfaceLabels = await AtomNucleus.getAllAdvertisedInterfaces();
+	}catch(e){
+		console.log("AtomNucleus:::Error: ",e);
+		throw e;
+	}
+	
 	for (let i = 0; i < interfaceLabels.length; i++) {
-		_interfaceInfo = JSON.parse(await AtomNucleus.getInterfaceInfo(interfaceLabels[i]));
-        interfaceList.push({
-        	"name": _interfaceInfo.name,
-        	"running": _interfaceInfo.running
-        });
+		try{
+			let _interfaceInfo = await AtomNucleus.getInterfaceInfo(interfaceLabels[i]);
+			// console.log("_interfaceInfo = ", _interfaceInfo);
+	        interfaceList.push({
+	        	"name": _interfaceInfo.name,
+	        	"running": _interfaceInfo.running
+	        });
+	    }catch(e){
+	    	console.log("AtomNucleus:::Error: ",e);
+	    }
     }
 	// _interfaces.map(async (interfaceLabel) => {
 		
 	// });
+
+	// console.log("interfaceList = ", interfaceList);
 	return interfaceList;
 }
 
 
 AtomNucleus.announceInterface = (ad)=>{
+	// if(!AtomNucleus.redisClient){
+	// 	return;
+	// }
+
 	diont.announceService(ad);
 }
 
 
 AtomNucleus.renounceInterface = (ad)=>{
-	console.log("Info: AtomNucleus: ", "Renouncing Interface - ", ad);
+	// if(!AtomNucleus.redisClient){
+	// 	return;
+	// }
+
+	console.log("Atom.Nucleus:::Info: AtomNucleus: ", "Renouncing Interface - ", ad);
 	diont.renounceService(ad);
 }
 
-AtomNucleus.getInterface = (interfaceAddress) => {
-	console.log("Info: ", "Finding Interface = ", interfaceAddress);
-	// redisClient.get(interfaceAddress, redis.print);
+
+
+AtomNucleus.getInterfaceIfActive = (interfaceLabel) => {
+
+	console.log("Atom.Nucleus:::Info: ", "Finding Interface = ", interfaceLabel);
+	// AtomNucleus.redisClient.get(interfaceLabel, redis.print);
 	// console.log("-------------------------------");
-	return new Promise((resolve, reject)=>{
-		var interface = redisClient.get(interfaceAddress, (err, res)=>{
-			// console.log("ERR: = ", err);
-			// console.log("RES: = ", res);
-			if(err){
-				console.log("Info: ", "Error finding interface = ", err);
-				reject(err);
-			}
-			else{
-				console.log("Info: ", "Found interface = ", res);
-				resolve(res);
-				return;
-			}
-		});
+	return new Promise(async (resolve, reject)=>{
+		if(!AtomNucleus.redisClient.connected){
+			let err = "Atom.Nucleus is not running";
+			reject(err);
+			return;
+		}
+		var interface;
+		try{
+			interface = await AtomNucleus.getInterfaceInfo(interfaceLabel)
+		}catch(e){
+			console.log("AtomNucleus:::Error: ",e);
+			reject(e);
+			return;
+		}
+
+		if(!interface){
+			let err = `404 : ${interfaceLabel} not found`;
+			reject(err);
+			return;	
+		}
+
+		// console.log("***********Interface - ", interface);
+
+		if(!interface.running){
+			let err = `405: ${interfaceLabel} is Not Active`;
+			reject(err);
+			return;
+		}
+		resolve(interface);
 	});
 }
-// server.close((err) => {
-//   // The associated Redis server is now closed.
-// });
-
-// var etcd = new Etcd();
 
 
 module.exports = AtomNucleus;

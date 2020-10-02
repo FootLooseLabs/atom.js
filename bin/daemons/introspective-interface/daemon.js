@@ -2,7 +2,7 @@ const AtomInterface = require('atom').Interface;
 
 // var msgCount = 0;
 
-const InterfaceSpecs = require("./introspective_interface_specs");
+const InterfaceSpecs = require("./interface_specs");
 
 global.component = {};
 

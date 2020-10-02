@@ -1,3 +1,5 @@
+//PENDING - restart all atom.interfaces running - upon Nucleus RESTART
+
 const RedisServer = require('redis-server');
 // var diont = require('diont')();
 const kill = require('kill-port');
@@ -48,12 +50,24 @@ var handleAdvertisements = function() {
 
 
 var startRedisServer = () => {
-	try{	
-		NucleusDaemon.server = new RedisServer(CONFIG.REDIS_PORT);
-		console.log("Info: ", "started Atom.Nucleus redis server");
-	}catch(e){
-		console.log(`Error: ${e}`);
-	}
+
+	return new Promise((resolve, reject) => {
+		try{	
+			NucleusDaemon.server = new RedisServer(CONFIG.REDIS_PORT);
+			NucleusDaemon.server.open((err) => {
+			  if (err) {
+			  	console.log(`Error: ${err}`);
+			    reject(err);
+			    return;
+			  }
+			  console.log("Info: ", "started Atom.Nucleus redis server");
+			  resolve(NucleusDaemon.server);
+			  return;
+			});
+		}catch(e){
+			console.log(`Error: ${e}`);
+		}
+	});
 	// if(!NucleusDaemon.server){return;}
 	// NucleusDaemon.server.open((err) => {
 	// 	if (err != null) {
@@ -70,19 +84,21 @@ var startRedisClient = () => {
 	NucleusDaemon.redisClient.on("error", function(err) {
 	  console.log(`Error: NucleusDaemon.redisClient: ${err}`);
 	});
+
+	console.log("Info: ", "started Atom.Nucleus default client");
 }
 
 var cleanPorts = async () => {
 	console.log("Info: cleaning atom.nucleus ports...");
 	return new Promise((resolve, reject)=>{
-		kill(CONFIG.REDIS_PORT).then(() => {
+		kill(CONFIG.REDIS_PORT).then(async () => {
 	      	console.info("Info:", "cleaned port = ", CONFIG.REDIS_PORT);
 	      	resolve(true);
 	      	// kill(CONFIG.DIONT_PORT, 'udp').then(()=>{
 	      	// 	console.info("Info:", "cleaned port = ", CONFIG.DIONT_PORT);
 	      	// })
 	      	
-		    startRedisServer();
+		    await startRedisServer();
 
 			startRedisClient();
 

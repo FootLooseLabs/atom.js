@@ -9,7 +9,8 @@ const execa = require('execa');
 const chalk = require('chalk');
 
 
-var InterfacesRunning = [];
+process.nucleus = require("atom").Nucleus;
+process.nucleus.AtomInterfacesRunning = [];
 
 var _getInterfacesInConfig = (config)=>{
 	return Object.keys(config).filter((_key)=>{
@@ -38,8 +39,8 @@ var startInterface = (configAbsDir,_interface) => {
 	// execSync(`npm run start&`, {stdio: 'inherit'});
 
 	var _interfaceSubprocess = execa('npm', ['run','start'], {stdio: 'inherit'})
-	InterfacesRunning.push(_interfaceSubprocess);
-	console.log("started interface");
+	process.nucleus.AtomInterfacesRunning.push(_interfaceSubprocess);
+	// console.log("started interface");
 }
 
 
@@ -50,7 +51,11 @@ var startEnv = (configPath) => {
 
 	console.log("Info: ","starting interfaces in config");
 
-	_getInterfacesInConfig(config).forEach((_interface)=>{
+	// console.log("process.nucleus = ", process.nucleus);
+
+	process.nucleus.init(config, process);
+
+	process.nucleus.AtomInterfacesDefined.forEach((_interface)=>{
 		startInterface(configAbsDir, _interface);
 	});
 
@@ -61,13 +66,13 @@ var handleInterrupts = function(signalEv) {
   	console.log(`Info: Received Interrupt = ${signalEv}`);
   	// kill(this.config.port).then(() => {
    //      console.info("Info: ", "terminated process that was using the port: ", this.config.port);
-   //      InterfacesRunning.forEach((_interfaceProc)=>{
+   //      process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
    //      	_interfaceProc.cancel();
    //      });
    //  });
 
     // console.info("Info: ", "terminated process that was using the port: ", this.config.port);
-    InterfacesRunning.forEach((_interfaceProc)=>{
+    process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
     	_interfaceProc.cancel();
     });
 

@@ -102,13 +102,13 @@ AtomSignal.prototype.sendWavelet = function(topic, payload){
 AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 
 	return new Promise(async (resolve, reject)=>{
-
+		var signal;
 		var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
 
 		if(!interfaceLabel){
 			status.error = "Error:", "No interface label provided";
 			console.log(status.error);
-			reject();
+			reject(status);
 			return;
 		}
 		
@@ -119,31 +119,61 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 
 		console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message);
 
-		var interface = await Nucleus.getInterface(interfaceAddress);
-
-		if(!interface){
-			status.error = "404: Not Found - ", `${interfaceAddress}`;
-			status.statusCode = -1;
-			console.log(status.error);
-			reject(status);
-			return;
-		}
 		try{
-			var interfaceSpec = JSON.parse(interface);
-		}catch(e){
-			status.error = "Error: Atom.Signal: error parsing interfaceSpec - ", e;
+			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddress);
+		}catch(err){
+			status.error = err;
+			status.message = `${interfaceAddress} is not available or running.`
+			status.statusCode = -1;
+			console.log(status.error);
+			reject(status);
+			return;
+		};
+
+		if(!interfaceSpec){ //case when atom.nucleus is not running
+			status.error = err;
+			status.message = `${interfaceAddress} is not available or running.`
 			status.statusCode = -1;
 			console.log(status.error);
 			reject(status);
 			return;
 		}
+
+		// if(!interface){
+		// 	status.error = `404: Interface Not Found`;
+		// 	status.message = `${interfaceAddress} Could Not be Found - is not available or running.`
+		// 	status.statusCode = -1;
+		// 	console.log(status.error);
+		// 	reject(status);
+		// 	return;
+		// }
+
+		// try{
+		// 	var interfaceSpec = JSON.parse(interface);
+		// }catch(e){
+		// 	status.error = "Error: Atom.Signal: error parsing interfaceSpec - ", e;
+		// 	status.statusCode = -1;
+		// 	console.log(status.error);
+		// 	reject(status);
+		// 	return;
+		// }
+
 		// console.log("\n-------------------------\n");
 		// console.log("INTERFACE === ", JSON.parse(interface).name);
 		// console.log("\n-------------------------\n");
 		// console.log("connections = ", Publisher.connections);
-		var signal = new AtomSignal({
-		  interface: interfaceSpec
-		})
+
+		try{
+			signal = new AtomSignal({
+			  interface: interfaceSpec
+			})
+		}catch(e){
+			reject(e);
+			return;
+		}
+		// if(!signal){
+		// 	return;
+		// }
 		// var socket = Publisher.connections[serviceName];
 		setTimeout(()=>{ 
 		// without setTimeout the socket is not ready by the time sendWavelet is fired 
