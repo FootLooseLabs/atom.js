@@ -31,7 +31,7 @@ program.parse(process.argv);
 // }
 
 process.on('exit', function() {
-	console.log('process killing');
+	// console.log('process killing');
 	// console.log('killing', children.length, 'child processes');
 	// children.forEach(function(child) {
 	// 	child.kill();
@@ -39,7 +39,7 @@ process.on('exit', function() {
 });
 
 process.on('close', function() {
-  console.log('process closing');
+  // console.log('process closing');
   // children.forEach(function(child) {
   //   child.kill();
   // });
