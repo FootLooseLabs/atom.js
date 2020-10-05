@@ -152,6 +152,39 @@ AtomCmpInterface.prototype.processMsg = function(_message) {
   return JSON.parse(_message);
 }
 
+AtomCmpInterface.prototype.ack1 = function(){
+
+}
+
+AtomCmpInterface.prototype.ack2 = function(){
+
+}
+
+
+AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
+  // let sender = inflection.get().sender;
+  var { message, error, result } = msg
+  let response = this.config.lexicon["Response"].inflect({
+    "op": `${this.name}:::${lexemeName}`, 
+    "label": this.config.lexicon[lexemeName].label,
+    "message": message,
+    "error": error,
+    "result": result
+  });
+
+  if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
+    sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
+  }
+
+  console.log("Atom.Interface: signal sender specified: ", sender);
+  try{
+    let respStatus = await signal.publishToInterface(`${sender}`, response.get());
+    console.log("Atom.Interface: Signal Update: ", respStatus);
+  }catch(e){
+    console.log("Atom.Interface signal error - ", e);
+  }
+}
+
 AtomCmpInterface.prototype.activate = function() {
   this.sock.on("message", async (_lexemeName, message) => {
     console.log(`${this.prefix}${_instance.name}@${this.address} - `,
@@ -185,7 +218,7 @@ AtomCmpInterface.prototype.activate = function() {
 
       var result, error, message;
       try{
-        result = await component[_lexemeName](inflection.get()); //assumed all component interface functionsa re async
+        result = await component[_lexemeName](inflection.get()); //assumed all component interface functions are async
         // console.log("INFO: result = ", result);
         if(result){
             message = result.message;
@@ -200,27 +233,12 @@ AtomCmpInterface.prototype.activate = function() {
       // if(inflection.get().sender && inflection.get().sender.port){
       
       if(inflection.get().sender){
-        let sender = inflection.get().sender;
-        let response = this.config.lexicon["Response"].inflect({
-          "op": `${this.name}:::${_lexemeName}`, 
-          "label": this.config.lexicon[_lexemeName].label,
-          "message": message,
-          "error": error,
-          "result": result
+        
+        this.reply(inflection.get().sender, _lexemeName, {
+          message: message,
+          error: error,
+          result: result
         });
-
-        if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
-          sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
-        }
-
-        console.log("Atom.Interface: signal sender specified: ", sender);
-        try{
-          let respStatus = await signal.publishToInterface(`${sender}`, response.get());
-          console.log("Atom.Interface: Signal Update: ", respStatus);
-        }catch(e){
-          console.log("Atom.Interface signal error - ", e);
-        }
-
         // p.then((respStatus) => {
         //   console.log("Atom.Interface: Signal Update: ", respStatus);
         // }, (err) => {
@@ -241,7 +259,7 @@ AtomCmpInterface.prototype.activate = function() {
 }
 
 AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
-  console.log(`Info: Received ${signalEv}`);
+  console.log(`Info: ${_instance.prefix}${_instance.name}@${_instance.address} - Received ${signalEv}`);
   if(signalEv=="SIGINT" && !_instance.ended){ //without _instance.eneded multiple (3) SIGINTs are received.
     console.log(`Info: Terminating ${_instance.prefix}${_instance.name}@${_instance.address}`);
     _instance.renounce();

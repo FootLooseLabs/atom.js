@@ -119,12 +119,14 @@ handleAdvertisements();
 
 var handleInterrupts = function(signalEv) {
   	console.log(`Info: Received Interrupt = ${signalEv}`);
-	NucleusDaemon.server.close((err) => {
-	  if (err === null) {
-	    console.log("Info: atom.Nucleus shutdown properly")
-	  }
-	  throw `Error: ${err.message}`
-	});
+  	if(NucleusDaemon.server){
+		NucleusDaemon.server.close((err) => {
+		  if (err) {
+		  	throw `Error: ${err.message}`
+		  }
+		  console.log("Info: atom.Nucleus shutdown properly");
+		});
+	}
 	process.exit();
 }
 

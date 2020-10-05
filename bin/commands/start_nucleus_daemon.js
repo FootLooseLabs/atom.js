@@ -19,20 +19,20 @@ var startNucluesDaemon = () => {
 	// NucleusDaemon(diont);
 }
 
-// // var handleInterrupts = function(signalEv) {
-// //   	console.log(`Info: Received Interrupt = ${signalEv}`);
-// // 	server.close((err) => {
-// // 	  if (err === null) {
-// // 	    console.log("Info: atom.Nucleus shutdown properly")
-// // 	  }
-// // 	  throw `Error: ${err.message}`
-// // 	});
-// // 	process.exit();
-// // }
+// var handleInterrupts = function(signalEv) {
+//   	console.log(`Info: Received Interrupt = ${signalEv}`);
+// 	server.close((err) => {
+// 	  if (err === null) {
+// 	    console.log("Info: atom.Nucleus shutdown properly")
+// 	  }
+// 	  throw `Error: ${err.message}`
+// 	});
+// 	process.exit();
+// }
 
-// // process.on('SIGINT', handleInterrupts);
-// // process.on('SIGTERM', handleInterrupts);
+// process.on('SIGINT', handleInterrupts);
+// process.on('SIGTERM', handleInterrupts);
 
-// // process.on('exit', handleInterrupts);
+// process.on('exit', handleInterrupts);
 
 module.exports = startNucluesDaemon;
