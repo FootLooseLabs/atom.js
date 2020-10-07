@@ -163,13 +163,14 @@ AtomCmpInterface.prototype.ack2 = function(){
 
 AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
-  var { message, error, result } = msg
+  var { message, error, result, subscriberUid } = msg
   let response = this.config.lexicon["Response"].inflect({
     "op": `${this.name}:::${lexemeName}`, 
     "label": this.config.lexicon[lexemeName].label,
     "message": message,
     "error": error,
-    "result": result
+    "result": result,
+    "subscriberUid": subscriberUid
   });
 
   if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
@@ -237,7 +238,8 @@ AtomCmpInterface.prototype.activate = function() {
         this.reply(inflection.get().sender, _lexemeName, {
           message: message,
           error: error,
-          result: result
+          result: result,
+          subscriberUid: inflection.get().subscriberUid
         });
         // p.then((respStatus) => {
         //   console.log("Atom.Interface: Signal Update: ", respStatus);
@@ -256,6 +258,8 @@ AtomCmpInterface.prototype.activate = function() {
   process.on('SIGINT', this.handleInterrupts);
   process.on('SIGTERM', this.handleInterrupts);
   console.log("Info: ", `${this.prefix}${this.name} activated`);
+
+  // process.send("interface-activated");
 }
 
 AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {

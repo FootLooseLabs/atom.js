@@ -7,6 +7,8 @@ const execa = require('execa');
 
 const chalk = require('chalk');
 
+var events = require("events");
+var eventEmitter = new events.EventEmitter();
 
 // const zmq = require("zeromq");
 
@@ -82,22 +84,38 @@ var startInterface = async (_interface) => {
 	// }
 
 	var runMode = getKwarg("mode");
-	var logMode = runMode == "dev" ? "inherit" : "pipe";
+	var logMode = runMode == "dev" ? ["inherit", "inherit", "inherit", "ipc"] : "pipe";
 	
-	var _interfaceSubprocess = execa('npm', ['run','start'], {stdio: logMode});
 
+	(async ()=>{
+		try{
+			var _interfaceSubprocess = execa('npm', ['run','start'], {stdio: logMode});
+			// _interfaceSubprocess.nucleus = process.nucleus;
+			// _interfaceSubprocess._name = _interface.name;
+			
+			if(logMode == "pipe"){
+				_interface.stdout = createInterfaceLogStream.stdout(_interface);
+				_interface.stderr = createInterfaceLogStream.stderr(_interface);
 
-	if(logMode == "pipe"){
-		_interface.stdout = createInterfaceLogStream.stdout(_interface);
-		_interface.stderr = createInterfaceLogStream.stderr(_interface);
+				_interfaceSubprocess.stdout.pipe(_interface.stdout);
+				_interfaceSubprocess.stderr.pipe(_interface.stderr);
+			}
 
+			// console.log("=================== _interfaceSubprocess ==================== ", _interfaceSubprocess);
 
-		_interfaceSubprocess.stdout.pipe(_interface.stdout);
-		_interfaceSubprocess.stderr.pipe(_interface.stderr);
-	}
-
-	process.nucleus.AtomInterfacesRunning.push(_interfaceSubprocess);
-	// console.log("started interface");
+			// _interfaceSubprocess.on("message",(ev)=>{
+			// 	console.log("--------------------interface message--------------------\n", ev);
+			// });
+			process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
+			// eventEmitter.emit("subprocess-added", _interfaceSubprocess);
+			
+			// console.log("started interface");
+		}catch(e){
+			// console.log(_interfaceSubprocess.killed);
+			// console.log(e.isCanceled);
+			console.error("-------------:Error:------------- \n ", e);
+		}
+	})();
 }
 
 
@@ -114,6 +132,11 @@ var startEnv = (configPath=__dirname) => {
 
 	process.nucleus.init(configAbsDir, process);
 	process.nucleus.initEnvLogsDir(process);
+
+
+	// eventEmitter.on("subprocess-added", (_atomSubprocess)=>{
+	// 	console.log("-------------------------------------- STARTED INTERFACE -------------------------------------- ", _atomSubprocess._name);
+	// });
 
 	process.nucleus.AtomInterfacesDefined.forEach((_interface)=>{
 		startInterface(_interface);

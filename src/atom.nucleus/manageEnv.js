@@ -2,6 +2,8 @@ const fs = require('fs');
 const path = require("path");
 const ini = require('ini');
 
+// var events = require("events");
+// var eventEmitter = new events.EventEmitter();
 
 const AtomNucleus = {};
 
@@ -82,6 +84,10 @@ AtomNucleus.getInterfacesInEnvConfig = (config)=>{ //NOTE - 'interface' is a res
 	})
 }
 
+
+AtomNucleus.addAtomSubprocess = (_process,_interfaceSubprocess) => {
+	_process.nucleus.AtomInterfacesRunning.push(_interfaceSubprocess);
+}
 
 AtomNucleus.init = (configAbsDir, _process) => {
 	try{
