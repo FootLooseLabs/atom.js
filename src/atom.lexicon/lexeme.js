@@ -38,6 +38,12 @@ class Lexeme {
         return this.info;
     }
 
+    getWithLabel() {
+        let info = this.get();
+        info.label = this.constructor.label;
+        return info;
+    }
+
     hasKey(keyString) {
         var _this = this;
         var keyList = keyString.split(".");

@@ -99,7 +99,7 @@ AtomSignal.prototype.sendWavelet = function(topic, payload){
 }
 
 
-AtomSignal.publishToInterface = async (interfaceLabel, message) => {
+AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 
 	return new Promise(async (resolve, reject)=>{
 		var signal;
@@ -117,7 +117,7 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 		interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
 
 
-		console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message);
+		console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message, ", lexeme = ", lexeme);
 
 		try{
 			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddress);
@@ -181,6 +181,10 @@ AtomSignal.publishToInterface = async (interfaceLabel, message) => {
 		// this approach is unreliable - tba a reliable approach.
 			try{
 				// publishToSocket(socket,interfaceName,message);
+				if(lexeme){
+					let inflection = lexeme.inflect(message);
+					message = inflection.getWithLabel();
+				}
 				signal.sendWavelet(topic, message);
 				status.error = false;
 				status.message = "signal sent";

@@ -164,6 +164,7 @@ AtomCmpInterface.prototype.ack2 = function(){
 AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
   var { message, error, result, subscriberUid } = msg
+
   let response = this.config.lexicon["Response"].inflect({
     "op": `${this.name}:::${lexemeName}`, 
     "label": this.config.lexicon[lexemeName].label,
@@ -172,6 +173,8 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
     "result": result,
     "subscriberUid": subscriberUid
   });
+
+  console.log("RESPONSE ============================== \n ", response);
 
   if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
     sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
@@ -186,7 +189,20 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   }
 }
 
+AtomCmpInterface.prototype._bindCmpProcess = function() {
+  if(component.__start__){
+    try{
+      component.__start__();
+    }catch(e){
+      console.error("Error: component process failed - ", e);
+      process.exit();
+    }
+  }
+}
+
 AtomCmpInterface.prototype.activate = function() {
+  this._bindCmpProcess();
+
   this.sock.on("message", async (_lexemeName, message) => {
     console.log(`${this.prefix}${_instance.name}@${this.address} - `,
       "received a message related to:",
@@ -222,8 +238,12 @@ AtomCmpInterface.prototype.activate = function() {
         result = await component[_lexemeName](inflection.get()); //assumed all component interface functions are async
         // console.log("INFO: result = ", result);
         if(result){
-            message = result.message;
-            delete result.message;
+          message = result.message;
+          delete result.message;
+          if(result.error){ // tbcleaned further
+            error = JSON.stringify(result.error);
+            result = null;
+          }
         }else{
           message = "no result received";
         }
