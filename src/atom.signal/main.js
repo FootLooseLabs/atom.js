@@ -1,3 +1,5 @@
+var events = require("events");
+
 var zmq = require("zeromq");
 const kill = require('kill-port');
 
@@ -18,11 +20,16 @@ function AtomSignal(options){
    		"data": "example payload (any valid jsonfiable obect)"
    	}
 
-	this.sock = zmq.socket("pub");
-
 	this.interface = options.interface;
 	this.port = options.port;
 	this.host = options.host;
+
+	if(options.isSubscriber==true){
+   		this.sock = zmq.socket("sub");
+   		this.port = options.eventsPort;
+   	}else{
+		this.sock = zmq.socket("pub");
+	}
 
 	this.wavelets = [];
 	this.config = {
@@ -33,6 +40,9 @@ function AtomSignal(options){
 	// 	email: "ankur@footloose.io",
 	// 	_type: "drona-hmi-demo-susbcriber"
 	// };
+
+	this.eventEmitter = new events.EventEmitter();
+
 	this.__init__();
 }
 
@@ -203,5 +213,85 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 	});
 }
 
+
+
+
+
+
+AtomSignal.subscribeToInterface = async (interfaceLabel, lexeme) => {
+
+	return new Promise(async (resolve, reject)=>{
+		var signal;
+		var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
+
+		if(!interfaceLabel){
+			status.error = "Error:", "No interface label provided";
+			console.log(status.error);
+			reject(status);
+			return;
+		}
+		
+		var [interfaceAddress, topic] = interfaceLabel.split(":::");
+
+		interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
+
+
+		console.debug("subscribing to ", `${interfaceAddress}:::${topic}`, "lexeme = ", lexeme);
+
+		try{
+			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddress);
+		}catch(err){
+			status.error = err;
+			status.message = `${interfaceAddress} is not available or running.`
+			status.statusCode = -1;
+			console.log(status.error);
+			reject(status);
+			return;
+		};
+
+		if(!interfaceSpec){ //case when atom.nucleus is not running
+			status.error = err;
+			status.message = `${interfaceAddress} is not available or running.`
+			status.statusCode = -1;
+			console.log(status.error);
+			reject(status);
+			return;
+		}
+
+		try{
+			signal = new AtomSignal({
+			  interface: interfaceSpec,
+			  isSubscriber: true
+			})
+		}catch(e){
+			reject(e);
+			return;
+		}
+
+		signal.sock.on("message", async (_topicName, message) => {
+		    console.log(chalk.yellow(`${this.prefix}${_instance.name}@${this.address} - 
+		      received a message related to:
+		      ${_topicName.toString()}, 
+		      containing message:
+		      ${message.toString()}`
+		    ));
+
+		    if(_topicName==topic){
+		    	signal.eventEmitter.emit(topic, msg);
+		    }
+		});
+
+
+		status.error = false;
+		status.message = "signal subscribed";
+		status.statusCode = 1;
+		status.subscriptionTopic = topic;
+		status.subscription = signal.eventEmitter;
+
+		console.debug("subscribed to ", `${interfaceAddress}:::${topic}`, " subscription-status = ", status);
+		resolve(status);
+		return;
+	});
+}
 
 module.exports = AtomSignal

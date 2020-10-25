@@ -1,5 +1,8 @@
+var events = require("events");
+
 var zmq = require("zeromq");
 const kill = require('kill-port');
+
 const chalk = require('chalk');
 
 // var diont = require('diont')();
@@ -64,6 +67,11 @@ function AtomCmpInterface (options){
   this.config = options.config || {};
   this.sock = null;
   this.middlewares = [];
+
+  this.eventEmitter = new events.EventEmitter();
+
+  this.eventsSock = zmq.socket("pub");
+
   this.__init__();
 };
 
@@ -86,9 +94,14 @@ AtomCmpInterface.prototype.__init__ = function() {
   // this.config.port = this.config.port || 8888;
   // this.config.lexicon = this.config.lexicon || [];
   this.address = `tcp://${this.config.host}:${this.config.port}`;
+  this.eventsSockAddress = `tcp://${this.config.host}:${this.config.port+1}`;
+
+  // this.eventEmitter.on("",()=>{});
+
   console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
 }
+
 
 AtomCmpInterface.prototype._initialiseSocket = function() {
   this.sock = zmq.socket("sub");
@@ -103,6 +116,8 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
   _instance = this;
   try{
     this.sock.bindSync(this.address);
+    this.eventsSock.bindSync(this.eventsSockAddress);
+
     console.info("Info:", "Initalised - ", `${this.name}@${this.address}`);
   }catch(e){
     if(e.message.includes("already in use") && this.config.port == this.defaultConfig.port){
@@ -160,19 +175,39 @@ AtomCmpInterface.prototype.ack2 = function(){
 
 }
 
+AtomCmpInterface.prototype.publish = async function(_label, msg){
+  let label = `${this.name}:::${_label}`;
+  this.eventEmitter.emit(label, msg);
+  this.eventsSock.send([label, msg]);
+
+  console.debug(chalk.yellow(`EVENT: ${label} published ${msg}`));
+}
+
+
+AtomCmpInterface.prototype.listen = async function(interfaceLabel, topic){
+  try{
+    let respStatus = await signal.suscrieToInterface(interfaceLabel);
+    console.log("Atom.Interface: Signal Update: ", respStatus);
+  }catch(e){
+    console.log("Atom.Interface signal error - ", e);
+  }
+}
 
 AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
   var { message, error, result, subscriberUid } = msg
 
+  var label = this.config.lexicon[lexemeName].label;
   let response = this.config.lexicon["Response"].inflect({
     "op": `${this.name}:::${lexemeName}`, 
-    "label": this.config.lexicon[lexemeName].label,
+    "label": label,
     "message": message,
     "error": error,
     "result": result,
     "subscriberUid": subscriberUid
   });
+
+  this.publish(label, response.get());
 
   console.log("RESPONSE ============================== \n ", response);
 
@@ -306,6 +341,7 @@ AtomCmpInterface.prototype.advertise = function() {
     address: `${this.prefix}${this.address}`,
     host: `${this.config.host}`, // when omitted, defaults to the local IP
     port: `${this.config.port}`,
+    eventsPort: `${this.config.port+1}`,
     lexicon: this.getSerialisedLexicon()
     // any additional information is allowed and will be propagated
   };
