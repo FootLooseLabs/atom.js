@@ -32,6 +32,7 @@ function AtomCmpInterface (options){
   this.defaultConfig = {
     host: "127.0.0.1",
     port: 7993,
+    eventsPort: 7994,
     lexicon: {}
   }
   this.prefix = "Atom.Interface:::";
@@ -62,11 +63,13 @@ AtomCmpInterface.prototype.__init__ = function() {
     console.log("Update: ", info);
     return info;
   }
+
+  this.config.eventsPort = this.config.port+1;
   // this.config.host = this.config.host || "127.0.0.1";
   // this.config.port = this.config.port || 8888;
   // this.config.lexicon = this.config.lexicon || [];
   this.address = `tcp://${this.config.host}:${this.config.port}`;
-  this.eventsSockAddress = `tcp://${this.config.host}:${this.config.port+1}`;
+  this.eventsSockAddress = `tcp://${this.config.host}:${this.config.eventsPort}`;
 
   // this.eventEmitter.on("",()=>{});
 
@@ -148,7 +151,8 @@ AtomCmpInterface.prototype.ack2 = function(){
 }
 
 AtomCmpInterface.prototype.publish = async function(_label, msg){
-  let label = `${this.name}:::${_label}`;
+  // let label = `${this.name}:::${_label}`;
+  let label = _label;
   this.eventEmitter.emit(label, msg);
   this.eventsSock.send([label, msg]);
 
@@ -314,7 +318,7 @@ AtomCmpInterface.prototype.advertise = function() {
     address: `${this.prefix}${this.address}`,
     host: `${this.config.host}`, // when omitted, this.config.host defaults to the local IP (see this.defaultConfig)
     port: `${this.config.port}`,
-    eventsPort: `${this.config.port+1}`,
+    eventsPort: `${this.config.eventsPort}`,
     lexicon: this.getSerialisedLexicon() // any additional information is allowed and will be propagated
   });
 

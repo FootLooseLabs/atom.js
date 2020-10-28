@@ -37,8 +37,8 @@ function AtomSignal(options){
 	this.isSubscriber = options.isSubscriber;
 
 	if(this.isSubscriber==true){
+		this.port = options.eventsPort;
    		this.sock = zmq.socket("sub");
-   		this.port = options.eventsPort;
    	}else{
 		this.sock = zmq.socket("pub");
 	}
@@ -62,7 +62,7 @@ function AtomSignal(options){
 AtomSignal.prototype.__init__ = function() {
 	if(this.interface){
 		this.host = this.interface.host;
-		this.port = this.interface.port;
+		this.port = this.isSubscriber==true ? this.interface.eventsPort : this.interface.port;
 	}else{
 		this.host = this.host || "127.0.0.1";
 	}
@@ -78,7 +78,7 @@ AtomSignal.prototype.__init__ = function() {
 
 
 AtomSignal.prototype.getLabel = function() {
-	return `${this.labelPrefix}${this.signalType}<--->${this.address}`
+	return `${this.labelPrefix}${this.signalType}<--->${this.interface.label}:::${this.channel}`;
 }
 
 
