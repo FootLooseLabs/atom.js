@@ -296,7 +296,7 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		      received a message related to:
 		      ${_topicName.toString()}, 
 		      containing message:
-		      ${message.toString()}`
+		      ${message}`
 		    ));
 
 		    if(_topicName==signal.channel){

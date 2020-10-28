@@ -153,6 +153,10 @@ AtomCmpInterface.prototype.ack2 = function(){
 AtomCmpInterface.prototype.publish = async function(_label, msg){
   // let label = `${this.name}:::${_label}`;
   let label = _label;
+
+  if(typeof msg != "string"){
+    var msg = JSON.stringify(msg);
+  }
   this.eventEmitter.emit(label, msg);
   this.eventsSock.send([label, msg]);
 
