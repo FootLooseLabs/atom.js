@@ -7,40 +7,12 @@ const chalk = require('chalk');
 
 // var diont = require('diont')();
 process.nucleus = require('../atom.nucleus/main');
-var lexeme = require('../atom.lexicon/main');
+// var lexeme = require('../atom.lexicon/main');
 var signal = require('../atom.signal/main');
 
+const BASE_LEXICON = require("./base_lexicon");
 
 global._instance = null;
-
-
-// const PRIVATE_LEXICON = {
-//   "Response": class Lexicon extends lexeme {
-//     static schema = {};
-//   }
-// }
-
-const BASE_LEXICON = {
-  "GetIntro": class Lexicon extends lexeme {
-    static schema = {
-      "sender": {
-        "port": null
-      }
-    };
-  },
-  "Update": class Lexicon extends lexeme {
-    static schema = {
-      "sender": null
-    };
-  },
-  "Response": class Lexicon extends lexeme {
-    static schema = {
-      "op": null,
-      "label": null,
-      "result": null
-    };
-  }
-};
 
 
 function AtomCmpInterface (options){
@@ -187,7 +159,7 @@ AtomCmpInterface.prototype.publish = async function(_label, msg){
 AtomCmpInterface.prototype.listen = async function(interfaceLabel, topic){
   try{
     let respStatus = await signal.suscrieToInterface(interfaceLabel);
-    console.log("Atom.Interface: Signal Update: ", respStatus);
+    // console.log("Atom.Interface: Signal Update: ", respStatus);
   }catch(e){
     console.log("Atom.Interface signal error - ", e);
   }
@@ -218,7 +190,7 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   console.log("Atom.Interface: signal sender specified: ", sender);
   try{
     let respStatus = await signal.publishToInterface(`${sender}`, response.get());
-    console.log("Atom.Interface: Signal Update: ", respStatus);
+    // console.log("Atom.Interface: Signal Update: ", respStatus);
   }catch(e){
     console.log("Atom.Interface signal error - ", e);
   }
@@ -266,7 +238,7 @@ AtomCmpInterface.prototype.activate = function() {
         return;
       }
 
-      console.log(`${this.ad.label} Inflected Lexeme: `, inflection.get());
+      console.log(`${this.prefix}${this.name} Inflected Lexeme: `, inflection.get());
 
       var result, error, message;
       try{
@@ -335,18 +307,19 @@ AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
 
 
 AtomCmpInterface.prototype.advertise = function() {
-  this.ad = {
+
+  this.ad = this.config.lexicon["Advertisement"].inflect({
     name: this.name,
     label: `${this.prefix}${this.name}`,
     address: `${this.prefix}${this.address}`,
-    host: `${this.config.host}`, // when omitted, defaults to the local IP
+    host: `${this.config.host}`, // when omitted, this.config.host defaults to the local IP (see this.defaultConfig)
     port: `${this.config.port}`,
     eventsPort: `${this.config.port+1}`,
-    lexicon: this.getSerialisedLexicon()
-    // any additional information is allowed and will be propagated
-  };
-  process.nucleus.announceInterface(this.ad);
-  console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", JSON.stringify(this.ad)));
+    lexicon: this.getSerialisedLexicon() // any additional information is allowed and will be propagated
+  });
+
+  process.nucleus.announceInterface(this.ad.get());
+  console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", this.ad.stringify()));
 }
 
 
@@ -358,7 +331,7 @@ AtomCmpInterface.prototype.advertiseAndActivate = function() {
 
 
 AtomCmpInterface.prototype.renounce = function() {
-  process.nucleus.renounceInterface(this.ad);
+  process.nucleus.renounceInterface(this.ad.get());
   try{
     _instance.sock.close();
   }catch(e){

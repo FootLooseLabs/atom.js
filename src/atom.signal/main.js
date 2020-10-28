@@ -8,6 +8,12 @@ const Nucleus = require('../atom.nucleus/main');
 
 const chalk = require('chalk');
 
+
+const INTERFACE_PREFIX = "Atom.Interface:::";
+
+
+const LEXICON = require("./base_lexicon");
+
 function AtomSignal(options){
    	if(!options){
     	throw "Error: no options specified";
@@ -20,11 +26,17 @@ function AtomSignal(options){
    		"data": "example payload (any valid jsonfiable obect)"
    	}
 
+   	this.labelPrefix = "AtomSignal:::";
+
 	this.interface = options.interface;
 	this.port = options.port;
 	this.host = options.host;
 
-	if(options.isSubscriber==true){
+	this.channel = options.channel;
+
+	this.isSubscriber = options.isSubscriber;
+
+	if(this.isSubscriber==true){
    		this.sock = zmq.socket("sub");
    		this.port = options.eventsPort;
    	}else{
@@ -55,6 +67,7 @@ AtomSignal.prototype.__init__ = function() {
 		this.host = this.host || "127.0.0.1";
 	}
 	this.address = `tcp://${this.host}:${this.port}`;
+	this.signalType = this.isSubscriber == true ? "subscriber" : "publisher";
 	this._connect();
 }
 // var testInterval = process.argv[5] || 3000;
@@ -64,10 +77,19 @@ AtomSignal.prototype.__init__ = function() {
 // }, testInterval);
 
 
+AtomSignal.prototype.getLabel = function() {
+	return `${this.labelPrefix}${this.signalType}<--->${this.address}`
+}
+
+
 AtomSignal.prototype._connect = function() {
 	try{
 		this.sock.connect(this.address);
-		console.log(`Info: Signal ready to send wavelets to - ${this.address}`);
+		if(this.isSubscriber == true){
+			console.log(`Info: Signal ready to receive wavelets from - ${this.address}`);
+		}else{
+			console.log(`Info: Signal ready to send wavelets to - ${this.address}`);
+		}
 	}catch(e){
 		throw `Error: ${e.message}`
 	}
@@ -93,116 +115,146 @@ AtomSignal.prototype._connect = function() {
 
 
 
-AtomSignal.prototype.sendWavelet = function(topic, payload){
+AtomSignal.prototype.sendWavelet = function(channel, payload){
 	var payload = payload || this.defaultPayload;
 	try{
 		if(typeof payload != "string"){ //case of cli - the json inputs are already string
-			console.log("stringifying payload");
+			console.debug("AtomSignal sendWavelet - stringifying payload");
 			payload = JSON.stringify(payload);
 		}
-		this.sock.send([topic, payload]);
-		this.wavelets.push({"topic": topic, "payload": payload, "timestamp": Date.now()});
-		console.log("Info: sent signal wavelet = ", `${payload}`, `to - ${this.address}:::${topic}`);
+		this.sock.send([channel, payload]);
+		this.wavelets.push({"channel": channel, "payload": payload, "timestamp": Date.now()});
+		console.log(`Info: ${this.getLabel()} published wavelet = `, `${channel}:::${payload}`);
 	}catch(e){
 		throw `Error: ${e.message}`
 	}
 }
 
 
-AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
-
+AtomSignal.constructFromSpec = async (signalSpec) => {
 	return new Promise(async (resolve, reject)=>{
 		var signal;
-		var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
+		var status = LEXICON.SignalStatus.inflect({
+			op: signalSpec.get().targetInterfaceLabel,
+			error : false,
+			message: "",
+			statusCode: 0
+		});
 
-		if(!interfaceLabel){
-			status.error = "Error:", "No interface label provided";
-			console.log(status.error);
-			reject(status);
+		if(!signalSpec.get().targetInterfaceLabel){
+			status.update({
+				error: "Error: No interface label provided"
+			})
+			console.log(status.get().error);
+			reject(status.get());
 			return;
 		}
 		
-		var [interfaceAddress, topic] = interfaceLabel.split(":::");
+		var [interfaceAddress, channel] = signalSpec.get().targetInterfaceLabel.split(":::");
 
-		interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
+		signalSpec.update({
+			channel : channel
+		})
 
+		var interfaceAddressWithPrefix = `${INTERFACE_PREFIX}${interfaceAddress}`;
 
-		console.log("publishing to ", `${interfaceAddress}:::${topic}`, ", msg = ", message, ", lexeme = ", lexeme);
+		console.debug(`Atom.Signal (type=${signalSpec.get().signalType}) being setup with - `, `${interfaceAddressWithPrefix}:::${channel}`);
 
 		try{
-			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddress);
+			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddressWithPrefix);
 		}catch(err){
-			status.error = err;
-			status.message = `${interfaceAddress} is not available or running.`
-			status.statusCode = -1;
-			console.log(status.error);
-			reject(status);
+			status.update({
+				error: err.message,
+				message: `AtomSignal: Error finding ${interfaceAddressWithPrefix} - it is not available or running.`,
+				statusCode: -1
+			});
+			console.error(status.get().message);
+			reject(status.get());
 			return;
 		};
 
 		if(!interfaceSpec){ //case when atom.nucleus is not running
-			status.error = err;
-			status.message = `${interfaceAddress} is not available or running.`
-			status.statusCode = -1;
-			console.log(status.error);
-			reject(status);
+			let err = `AtomSignal: Error finding ${interfaceAddressWithPrefix} - probably Atom.Nucleus is not running.`;
+			status.update({
+				error: err,
+				message: err,
+				statusCode: -1
+			});
+			console.error(status.get().message);
+			reject(status.get());
 			return;
 		}
-
-		// if(!interface){
-		// 	status.error = `404: Interface Not Found`;
-		// 	status.message = `${interfaceAddress} Could Not be Found - is not available or running.`
-		// 	status.statusCode = -1;
-		// 	console.log(status.error);
-		// 	reject(status);
-		// 	return;
-		// }
-
-		// try{
-		// 	var interfaceSpec = JSON.parse(interface);
-		// }catch(e){
-		// 	status.error = "Error: Atom.Signal: error parsing interfaceSpec - ", e;
-		// 	status.statusCode = -1;
-		// 	console.log(status.error);
-		// 	reject(status);
-		// 	return;
-		// }
-
-		// console.log("\n-------------------------\n");
-		// console.log("INTERFACE === ", JSON.parse(interface).name);
-		// console.log("\n-------------------------\n");
-		// console.log("connections = ", Publisher.connections);
 
 		try{
 			signal = new AtomSignal({
-			  interface: interfaceSpec
+			  interface: interfaceSpec,
+			  isSubscriber: signalSpec.get().signalType == "subscriber" ? true : false,
+			  channel: channel
 			})
+			status.update({
+				error: null,
+				message: `AtomSignal: Successfully Establised Signal with ${interfaceAddressWithPrefix}`,
+				statusCode: 1,
+				signal : signal
+			});
+			console.debug(status.get().message)
+			resolve(status.get());
 		}catch(e){
-			reject(e);
+			status.update({
+				error: e.message,
+				message: `AtomSignal: Error establishing signal with ${interfaceAddressWithPrefix}`,
+				statusCode: -1
+			});
+			console.error(status.get().message);
+			reject(status.get());
 			return;
 		}
-		// if(!signal){
-		// 	return;
-		// }
-		// var socket = Publisher.connections[serviceName];
+
+	});
+}
+
+AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
+	var signalSpec = LEXICON.SignalSpec.inflect({
+		targetInterfaceLabel: interfaceLabel,
+		signalType: "publisher"
+	});
+
+	try{
+		var establishedSignalStatus = await AtomSignal.constructFromSpec(signalSpec);
+	}catch(e){
+		throw e;
+	}
+
+	console.debug(`AtomSignal: Established Signal = ${establishedSignalStatus}`);
+
+	return new Promise(async (resolve, reject)=>{
+		var signal = establishedSignalStatus.signal;
+
 		setTimeout(()=>{ 
 		// without setTimeout the socket is not ready by the time sendWavelet is fired 
 		// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
 		// this approach is unreliable - tba a reliable approach.
 			try{
-				// publishToSocket(socket,interfaceName,message);
 				if(lexeme){
 					let inflection = lexeme.inflect(message);
 					message = inflection.getWithLabel();
 				}
-				signal.sendWavelet(topic, message);
-				status.error = false;
-				status.message = "signal sent";
-				status.statusCode = 1;
+				signal.sendWavelet(signal.channel, message);
 
-				resolve(status);
+				let status = LEXICON.SignalStatus.inflect({
+					error: false,
+					message: `${signal.getLabel()} published wavelet`,
+					statusCode: 2,
+					signal: signal
+				});		
+				resolve(status.get());
 				return;
 			}catch(e){
+				let status = LEXICON.SignalStatus.inflect({
+					error: e.message,
+					message: `Error: ${signal.getLabel()} publishing wavelet - e.message`,
+					statusCode: -1
+				});
 				status.error = e;
 				status.statusCode = -1;
 
@@ -218,78 +270,50 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 
 
 
-AtomSignal.subscribeToInterface = async (interfaceLabel, lexeme) => {
+AtomSignal.subscribeToInterface = async (interfaceLabel) => {
+
+	var signalSpec = LEXICON.SignalSpec.inflect({
+		targetInterfaceLabel: interfaceLabel,
+		signalType: "subscriber",
+	});
+
+	try{
+		var establishedSignalStatus = await AtomSignal.constructFromSpec(signalSpec);
+	}catch(e){
+		throw e;
+	}
+
+	console.debug(`AtomSignal: Established Signal = ${establishedSignalStatus}`);
 
 	return new Promise(async (resolve, reject)=>{
-		var signal;
-		var status = {op: interfaceLabel, error : false, message: "", statusCode: 0};
 
-		if(!interfaceLabel){
-			status.error = "Error:", "No interface label provided";
-			console.log(status.error);
-			reject(status);
-			return;
-		}
-		
-		var [interfaceAddress, topic] = interfaceLabel.split(":::");
+		var signal = establishedSignalStatus.signal;
 
-		interfaceAddress = `Atom.Interface:::${interfaceAddress}`;
-
-
-		console.debug("subscribing to ", `${interfaceAddress}:::${topic}`, "lexeme = ", lexeme);
-
-		try{
-			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddress);
-		}catch(err){
-			status.error = err;
-			status.message = `${interfaceAddress} is not available or running.`
-			status.statusCode = -1;
-			console.log(status.error);
-			reject(status);
-			return;
-		};
-
-		if(!interfaceSpec){ //case when atom.nucleus is not running
-			status.error = err;
-			status.message = `${interfaceAddress} is not available or running.`
-			status.statusCode = -1;
-			console.log(status.error);
-			reject(status);
-			return;
-		}
-
-		try{
-			signal = new AtomSignal({
-			  interface: interfaceSpec,
-			  isSubscriber: true
-			})
-		}catch(e){
-			reject(e);
-			return;
-		}
+		signal.sock.subscribe(signal.channel);
 
 		signal.sock.on("message", async (_topicName, message) => {
-		    console.log(chalk.yellow(`${this.prefix}${_instance.name}@${this.address} - 
+		    console.log(chalk.yellow(`${signal.getLabel()} - 
 		      received a message related to:
 		      ${_topicName.toString()}, 
 		      containing message:
 		      ${message.toString()}`
 		    ));
 
-		    if(_topicName==topic){
-		    	signal.eventEmitter.emit(topic, msg);
+		    if(_topicName==signal.channel){
+		    	signal.eventEmitter.emit(_topicName, message);
 		    }
 		});
 
+		let msg = `${signal.getLabel()} is active`;
+		let status = LEXICON.SignalStatus.inflect({
+			error: false,
+			message: msg,
+			statusCode: 2,
+			signal: signal
+		});
 
-		status.error = false;
-		status.message = "signal subscribed";
-		status.statusCode = 1;
-		status.subscriptionTopic = topic;
-		status.subscription = signal.eventEmitter;
-
-		console.debug("subscribed to ", `${interfaceAddress}:::${topic}`, " subscription-status = ", status);
-		resolve(status);
+		console.debug(msg);
+		resolve(status.get());
 		return;
 	});
 }

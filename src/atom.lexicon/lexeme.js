@@ -4,8 +4,9 @@ class Lexeme {
     static schema = {};
 
     constructor(info) {
-        this.info = {...this.constructor.schema,...info};
+        // this.info = {...this.constructor.schema,...info};
 
+        this.info = {...this.constructor.schema, ...this.constructor._intersection(this.constructor.schema, info)};
 
         console.debug("DEBUG: LEXEME constructor : Label = ", this.get().label);
         if(!this.get().label){
@@ -16,6 +17,12 @@ class Lexeme {
         }
     }
 
+
+    static _intersection(a, b) {
+        var _intersectingObj = {};
+        Object.keys(a).filter(k => b.hasOwnProperty(k)).forEach(k => _intersectingObj[k]=b[k]);
+        return _intersectingObj;
+    }
 
     static inflection(info, params) { //can be extended in child classes inheriting from this parent; *inflection function must return boolean value;
         // console.log("lexeme: default inflection");
@@ -42,6 +49,11 @@ class Lexeme {
 
         return new this(inflection); //if inflection is not false
     }
+
+    // _applySchema(info) {
+    //     var _intersectingObj = this.constructor._intersection(this.constructor.schema, info);
+    //     return {...this.constructor.schema, _intersectingObj}
+    // }
 
     get() {
         return this.info;
