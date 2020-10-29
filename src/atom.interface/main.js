@@ -53,16 +53,7 @@ AtomCmpInterface.prototype.__init__ = function() {
   this.config = {...this.defaultConfig, ...this.config};
   this.config.lexicon = {...BASE_LEXICON , ...this.config.lexicon}
 
-  component.GetIntro = () => {
-    var result = this.getSerialisedLexicon();
-    console.log("GetIntro: ", result);
-    return result;
-  }
-
-  component.Update = (info) => {
-    console.log("Update: ", info);
-    return info;
-  }
+  this.__initComponentProps__();
 
   this.config.eventsPort = this.config.port+1;
   // this.config.host = this.config.host || "127.0.0.1";
@@ -75,6 +66,26 @@ AtomCmpInterface.prototype.__init__ = function() {
 
   console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
+}
+
+
+AtomCmpInterface.prototype.__initComponentProps__ = function() {
+  component.GetIntro = () => {
+    var result = this.getSerialisedLexicon();
+    console.log("GetIntro: ", result);
+    return result;
+  }
+
+  component.Update = (info) => {
+    console.log("Update: ", info);
+    return info;
+  }
+
+  component._eventEmitter = new events.EventEmitter();
+
+  component.emit = component._eventEmitter.emit;
+
+  component.on = component._eventEmitter.on;
 }
 
 
@@ -175,7 +186,7 @@ AtomCmpInterface.prototype.listen = async function(interfaceLabel, topic){
 
 AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
-  var { message, error, result, subscriberUid } = msg
+  var { message, error, result } = msg
 
   var label = this.config.lexicon[lexemeName].label;
   let response = this.config.lexicon["Response"].inflect({
@@ -184,10 +195,11 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
     "message": message,
     "error": error,
     "result": result,
-    "subscriberUid": subscriberUid
   });
 
-  this.publish(label, response.get());
+  if(label){
+    this.publish(label, response.get());
+  }
 
   console.log("RESPONSE ============================== \n ", response);
 
@@ -273,8 +285,7 @@ AtomCmpInterface.prototype.activate = function() {
         this.reply(inflection.get().sender, _lexemeName, {
           message: message,
           error: error,
-          result: result,
-          subscriberUid: inflection.get().subscriberUid
+          result: result
         });
         // p.then((respStatus) => {
         //   console.log("Atom.Interface: Signal Update: ", respStatus);
