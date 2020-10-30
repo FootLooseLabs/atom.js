@@ -78,7 +78,9 @@ AtomSignal.prototype.__init__ = function() {
 
 
 AtomSignal.prototype.getLabel = function() {
-	return `${this.labelPrefix}${this.signalType}<--->${this.interface.label}:::${this.channel}`;
+	let label = `${this.labelPrefix}${this.signalType}<--->${this.interface.label}`;
+	this.signalType == "subscriber" ? label += `|||${this.channel}` : `:::${this.channel}`;
+	return label;
 }
 
 
@@ -150,7 +152,7 @@ AtomSignal.constructFromSpec = async (signalSpec) => {
 			return;
 		}
 		
-		var [interfaceAddress, channel] = signalSpec.get().targetInterfaceLabel.split(":::");
+		var [interfaceAddress, channel] = signalSpec.get().signalType == "subscriber" ? signalSpec.get().targetInterfaceLabel.split("|||") : signalSpec.get().targetInterfaceLabel.split(":::");
 
 		signalSpec.update({
 			channel : channel
@@ -230,6 +232,8 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 	return new Promise(async (resolve, reject)=>{
 		var signal = establishedSignalStatus.signal;
 
+		var status = LEXICON.SignalStatus.inflect(establishedSignalStatus);
+
 		setTimeout(()=>{ 
 		// without setTimeout the socket is not ready by the time sendWavelet is fired 
 		// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
@@ -241,16 +245,15 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 				}
 				signal.sendWavelet(signal.channel, message);
 
-				let status = LEXICON.SignalStatus.inflect({
+				status.update({
 					error: false,
 					message: `${signal.getLabel()} published wavelet`,
 					statusCode: 2,
-					signal: signal
 				});		
 				resolve(status.get());
 				return;
 			}catch(e){
-				let status = LEXICON.SignalStatus.inflect({
+				status.update({
 					error: e.message,
 					message: `Error: ${signal.getLabel()} publishing wavelet - e.message`,
 					statusCode: -1
@@ -288,6 +291,8 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 	return new Promise(async (resolve, reject)=>{
 
 		var signal = establishedSignalStatus.signal;
+		var op = establishedSignalStatus.op;
+		var status = LEXICON.SignalStatus.inflect(establishedSignalStatus);
 
 		signal.sock.subscribe(signal.channel);
 
@@ -296,20 +301,26 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		      received a message related to:
 		      ${_topicName.toString()}, 
 		      containing message:
-		      ${message}`
+		      ${message.toString()}`
 		    ));
 
 		    if(_topicName==signal.channel){
-		    	signal.eventEmitter.emit(_topicName, message);
+		    	let _inflection = LEXICON.Publication.inflect({
+		    		op: `EVENT:::${op}`,
+		    		message: JSON.parse(message.toString()),
+		    		epoch: Date.now()
+		    	});
+
+		    	console.debug(chalk.blue(`EVENT:::${signal.getLabel()} - ${_inflection.stringify()}`))
+		    	signal.eventEmitter.emit(_topicName, _inflection.get());
 		    }
 		});
 
 		let msg = `${signal.getLabel()} is active`;
-		let status = LEXICON.SignalStatus.inflect({
+		status.update({
 			error: false,
 			message: msg,
 			statusCode: 2,
-			signal: signal
 		});
 
 		console.debug(msg);

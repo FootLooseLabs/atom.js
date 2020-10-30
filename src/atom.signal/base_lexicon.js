@@ -22,4 +22,13 @@ LEXICON.SignalStatus = class Lexicon extends Lexeme {
 }
 
 
+LEXICON.Publication = class Lexicon extends Lexeme {
+  static schema = {
+    op: null, 
+    message: "", 
+    epoch: 0
+  };
+}
+
+
 module.exports = LEXICON;

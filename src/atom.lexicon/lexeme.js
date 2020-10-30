@@ -8,9 +8,9 @@ class Lexeme {
 
         this.info = {...this.constructor.schema, ...this.constructor._intersection(this.constructor.schema, info)};
 
-        console.debug("DEBUG: LEXEME constructor : Label = ", this.get().label);
+        // console.debug("DEBUG: LEXEME constructor : Label = ", this.get().label);
         if(!this.get().label){
-            console.debug("DEBUG: LEXEME constructor : static Label = ", this.constructor.label);
+            // console.debug("DEBUG: LEXEME constructor : static Label = ", this.constructor.label);
             if(this.constructor.label){
                 this.get().label = this.constructor.label;
             }
