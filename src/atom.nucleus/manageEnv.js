@@ -1,3 +1,5 @@
+var events = require('events');
+
 const fs = require('fs');
 const path = require("path");
 const ini = require('ini');
@@ -7,6 +9,11 @@ const ini = require('ini');
 
 const AtomNucleus = {};
 
+AtomNucleus._eventEmitter = new events.EventEmitter();
+
+
+AtomNucleus.emit = AtomNucleus._eventEmitter.emit;
+AtomNucleus.on = AtomNucleus._eventEmitter.on;
 
 AtomNucleus.parseEnvConfig = (_dir) => {
 	console.log("Info:", "parsing atom env config at - ", _dir);

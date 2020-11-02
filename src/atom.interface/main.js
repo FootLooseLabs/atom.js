@@ -186,7 +186,9 @@ AtomCmpInterface.prototype.listen = async function(interfaceLabel, topic){
 
 AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
-  var { message, error, result } = msg
+  var { message, error, result } = msg;
+
+  console.debug(">>>>>>>>>>>>>>>REPLYING TO: ", sender, ", for OP: ", `${lexemeName}` ,", with MSG: ", msg);
 
   var label = this.config.lexicon[lexemeName].label;
   let response = this.config.lexicon["Response"].inflect({
@@ -275,11 +277,14 @@ AtomCmpInterface.prototype.activate = function() {
           message = "no result received";
         }
       }catch(err){
+        // console.error("Operation Errored with  this - ", err);
         error = err.message;
         message = `Operation Failed`;
       }
       // if(inflection.get().sender && inflection.get().sender.port){
       
+      console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
+
       if(inflection.get().sender){
         
         this.reply(inflection.get().sender, _lexemeName, {

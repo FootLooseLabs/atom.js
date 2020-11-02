@@ -166,7 +166,7 @@ AtomSignal.constructFromSpec = async (signalSpec) => {
 			var interfaceSpec = await Nucleus.getInterfaceIfActive(interfaceAddressWithPrefix);
 		}catch(err){
 			status.update({
-				error: err.message,
+				error: err,
 				message: `AtomSignal: Error finding ${interfaceAddressWithPrefix} - it is not available or running.`,
 				statusCode: -1
 			});

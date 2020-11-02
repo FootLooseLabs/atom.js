@@ -1,5 +1,4 @@
 //PENDING - restart all atom.interfaces running - upon Nucleus RESTART
-
 var diont = require('diont')();
 // var Etcd = require('node-etcd');
 const redis = require("redis");
@@ -10,14 +9,19 @@ const AtomNucleus = require("./manageEnv");
 
 AtomNucleus.redisClient = redis.createClient();
 
+AtomNucleus.redisClient.on('connect', function () {
+    console.log('AtomNucleus redisClient connected');
+    AtomNucleus.emit("ready", AtomNucleus);
+});
+
 
 AtomNucleus.redisClient.on("error", function(err) {
 	console.log(`WARNING: Atom.Nucleus is not running - \n ( to start atom.nuclueus please run: ${chalk.blue("atom -s")} )`);
+	AtomNucleus.emit("error", err);
 });
 
 
 AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliable (doesn't return proper results if many keys)
-
 
 	console.log("Atom.Nucleus:::Info: ", "Discovering Interfaces in the Environment...");
 	// AtomNucleus.redisClient.get(interfaceAddress, redis.print);
@@ -66,6 +70,7 @@ AtomNucleus.getInterfaceInfo = (interfaceLabel) => {
 
 	return new Promise((resolve, reject) => {
 		if(!AtomNucleus.redisClient.connected){
+			// console.error("Atom.Nucleus redisClient is not running ***************** ", AtomNucleus.redisClient);
 			let err = "Atom.Nucleus is not running";
 			reject(err);
 			return;
@@ -156,6 +161,7 @@ AtomNucleus.getInterfaceIfActive = (interfaceLabel) => {
 	// console.log("-------------------------------");
 	return new Promise(async (resolve, reject)=>{
 		if(!AtomNucleus.redisClient.connected){
+			// console.error("Atom.Nucleus redisClient is not running ****#######************* ", AtomNucleus.redisClient);
 			let err = "Atom.Nucleus is not running";
 			reject(err);
 			return;
