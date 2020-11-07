@@ -1,11 +1,13 @@
-//PENDING - restart all atom.interfaces running - upon Nucleus RESTART
-var diont = require('diont')();
-// var Etcd = require('node-etcd');
+//PENDING - restart all atom.interfaces running - upon Nucleus RESTART// var Etcd = require('node-etcd');
 const redis = require("redis");
 
 const chalk = require('chalk');
 
 const AtomNucleus = require("./manageEnv");
+
+
+AtomNucleus.diont = require('diont')();
+
 
 AtomNucleus.redisClient = redis.createClient();
 
@@ -139,7 +141,19 @@ AtomNucleus.announceInterface = (ad)=>{
 	// 	return;
 	// }
 
-	diont.announceService(ad);
+	AtomNucleus.diont.announceService(ad);
+
+	// let _label = `AgentActivated:::${ad.label}`;
+
+	
+	// AtomNucleus.emit(`${_label}`,ad);
+
+	// console.debug("~~~~~~~~~~~~~~DEBUG ATOM.NUCLEUS EMITTING EVENT : ", `${_label}`);
+
+	AtomNucleus.diont.on("serviceAnnounced", function(serviceInfo) {
+		let _label = `AgentActivated:::${serviceInfo.service.label}`;
+		setTimeout(()=>{AtomNucleus.emit(`${_label}`, serviceInfo.service)},200);;
+	});
 }
 
 
@@ -148,8 +162,9 @@ AtomNucleus.renounceInterface = (ad)=>{
 	// 	return;
 	// }
 
-	console.log("Atom.Nucleus:::Info: AtomNucleus: ", "Renouncing Interface - ", ad);
-	diont.renounceService(ad);
+	// console.log("Atom.Nucleus:::Info: AtomNucleus: ", "Renouncing Interface - ", ad);
+	AtomNucleus.diont.renounceService(ad);
+	// AtomNucleus.emit(`AgentDeactivated:::${ad.label}`,ad);
 }
 
 

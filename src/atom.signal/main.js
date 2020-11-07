@@ -152,7 +152,11 @@ AtomSignal.constructFromSpec = async (signalSpec) => {
 			return;
 		}
 		
-		var [interfaceAddress, channel] = signalSpec.get().signalType == "subscriber" ? signalSpec.get().targetInterfaceLabel.split("|||") : signalSpec.get().targetInterfaceLabel.split(":::");
+		try{
+			var [interfaceAddress, channel] = signalSpec.get().signalType == "subscriber" ? signalSpec.get().targetInterfaceLabel.split("|||") : signalSpec.get().targetInterfaceLabel.split(":::");
+		}catch(e){
+			reject(e);
+		}
 
 		signalSpec.update({
 			channel : channel
@@ -307,7 +311,8 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		    if(_topicName==signal.channel){
 		    	let _inflection = LEXICON.Publication.inflect({
 		    		op: `EVENT:::${op}`,
-		    		message: JSON.parse(message.toString()),
+		    		label: signal.channel,
+		    		result: JSON.parse(message.toString()),
 		    		epoch: Date.now()
 		    	});
 

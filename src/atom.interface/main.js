@@ -33,13 +33,15 @@ function AtomCmpInterface (options){
     host: "127.0.0.1",
     port: 7993,
     eventsPort: 7994,
-    lexicon: {}
+    lexicon: {},
+    connections: {}
   }
   this.prefix = "Atom.Interface:::";
   this.name = options.name;
   this.config = options.config || {};
   this.sock = null;
   this.middlewares = [];
+  this.connections = {};
 
   this.eventEmitter = new events.EventEmitter();
 
@@ -161,6 +163,35 @@ AtomCmpInterface.prototype.ack2 = function(){
 
 }
 
+
+AtomCmpInterface.prototype.initConnections = function () {
+  var _interfaceConnectionsConfig = this.config.connections;
+  for(var key in _interfaceConnectionsConfig){
+
+    if(this.connections[key] && this.connections[key].statusCode == 2){return;}
+
+    console.debug("initConnections Subscribing with - ", _interfaceConnectionsConfig[key]);
+    this.connections[key] = signal.subscribeToInterface(_interfaceConnectionsConfig[key]);
+
+    if(this.connections[key]){
+      this.connections[key].then((signalStatus)=>{
+        console.debug("RORCommander Subscription Signal Response - signalStatus channel = ", signalStatus.signal.channel);
+        if(!signalStatus.error){
+          // console.debug("_________________RORCommander listening at RORAgent.OperationSpaceUpdates_________________");
+          signalStatus.signal.eventEmitter.on(`${signalStatus.signal.channel}`,async (msg)=>{
+            component.emit(`interface.${key}`, msg);
+          });
+        }
+        this.connections[key] = signalStatus;
+      },(signalStatusErr)=>{
+        let err = `ERROR: Initialising Connection Between ${this.name} with ${key} --> ${signalStatusErr.message}`;
+        console.error(err);
+        this.connections[key] = Error(err);
+      });
+    }
+  }
+}
+
 AtomCmpInterface.prototype.publish = async function(_label, msg){
   // let label = `${this.name}:::${_label}`;
   let label = _label;
@@ -229,8 +260,22 @@ AtomCmpInterface.prototype._bindCmpProcess = function() {
   }
 }
 
+AtomCmpInterface.prototype._bindConnections = function (argument) {
+  process.nucleus.on(`AgentActivated:::Atom.Interface:::@drona/ror.agent`, (agentAd)=>{
+    if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
+      console.debug(this.name,":::heard:::AgentActivated = ", agentAd.name);
+      this.initConnections();
+    }
+  });
+
+  process.nucleus.on("ready",()=>{
+    this.initConnections();
+  });
+}
+
 AtomCmpInterface.prototype.activate = function() {
   this._bindCmpProcess();
+  this._bindConnections();
 
   this.sock.on("message", async (_lexemeName, message) => {
     console.log(`${this.prefix}${_instance.name}@${this.address} - `,
@@ -283,9 +328,11 @@ AtomCmpInterface.prototype.activate = function() {
       }
       // if(inflection.get().sender && inflection.get().sender.port){
       
-      console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
+      // console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
 
       if(inflection.get().sender){
+
+        console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
         
         this.reply(inflection.get().sender, _lexemeName, {
           message: message,
@@ -349,8 +396,8 @@ AtomCmpInterface.prototype.advertise = function() {
 
 AtomCmpInterface.prototype.advertiseAndActivate = function() {
   process.title = `${this.prefix}${this.name}`;
-  this.advertise();
   this.activate();
+  this.advertise();
 }
 
 
