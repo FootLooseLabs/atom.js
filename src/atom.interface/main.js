@@ -241,8 +241,14 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   }
 
   console.log("Atom.Interface: signal sender specified: ", sender);
+
+  var senderParams = this.processInterfaceUri(sender); //allowing passing of params similar to url params in www.
+  var senderInterface = senderParams.shift();
+
+  // response.update({sender: senderInterface});
+
   try{
-    let respStatus = await signal.publishToInterface(`${sender}`, response.get());
+    let respStatus = await signal.publishToInterface(`${senderInterface}`, response.get(), senderParams);
     // console.log("Atom.Interface: Signal Update: ", respStatus);
   }catch(e){
     console.log("Atom.Interface signal error - ", e);
@@ -273,17 +279,38 @@ AtomCmpInterface.prototype._bindConnections = function (argument) {
   });
 }
 
+AtomCmpInterface.prototype.processInterfaceUri = function(_message) {
+  return _message.split("#$#");
+}
+
 AtomCmpInterface.prototype.activate = function() {
   this._bindCmpProcess();
   this._bindConnections();
 
-  this.sock.on("message", async (_lexemeName, message) => {
+  this.sock.on("message", async (_lexemeName, _message) => {
     console.log(`${this.prefix}${_instance.name}@${this.address} - `,
       "received a message related to:",
       _lexemeName.toString(),
       "containing message:",
-      message.toString()
+      _message.toString()
     );
+
+
+    try{
+      var [message, _paramsString] = _message.toString().split("---<end-of-message>---");
+    }catch(e){
+      console.error(`Couldn't process incoming msg - `, e);
+      return;
+    }
+
+    // var message = processedMsg.shift();
+
+    var _paramsList = _paramsString ? this.processInterfaceUri(_paramsString) : [];
+
+    // console.debug("_paramsList ------------ ", _paramsList);
+
+    // var message = _paramsList.shift();
+    
 
     // console.log("component = ", component[_lexemeName]);
     try{
@@ -299,7 +326,7 @@ AtomCmpInterface.prototype.activate = function() {
         return;
       }
 
-      var inflection = this.config.lexicon[_lexemeName].inflect(message.toString());
+      var inflection = this.config.lexicon[_lexemeName].inflect(message.toString(), _paramsList); //passed both at inflection & component function call below - can be utilized at iether place
       if(!inflection){
         console.log(`Error: Inflected form is invalid`);
         return;
@@ -309,7 +336,7 @@ AtomCmpInterface.prototype.activate = function() {
 
       var result, error, message;
       try{
-        result = await component[_lexemeName](inflection.get()); //assumed all component interface functions are async
+        result = await component[_lexemeName](inflection.get(), _paramsList); //assumed all component interface functions are async
         // console.log("INFO: result = ", result);
         if(result){
           message = result.message;
@@ -406,7 +433,21 @@ AtomCmpInterface.prototype.renounce = function() {
   try{
     _instance.sock.close();
   }catch(e){
+    console.error(e);
   } 
+
+  try{ //deestroy all the interface connection signals
+    for(var k in this.connections){
+      var _connection = this.connections[k];
+      if(!(_connection instanceof Error)){
+        if(_connection.signal){
+          _connection.signal.destroy();
+        }
+      }
+    }
+  }catch(e){
+    console.error(e);
+  }
   this.ended = true;
 }
 

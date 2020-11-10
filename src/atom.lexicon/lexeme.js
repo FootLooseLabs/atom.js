@@ -39,7 +39,7 @@ class Lexeme {
             var inflection = this.inflection(info, params);
             // console.log("inflection = ", inflection);
         }catch(e){
-            console.log("Error: lexeme inflection failed - ", e);
+            console.log(`Error: lexeme:::(${info})---(${params}) inflection failed - `, e);
             return;
         }
         if(!inflection){

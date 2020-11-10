@@ -117,12 +117,15 @@ AtomSignal.prototype._connect = function() {
 
 
 
-AtomSignal.prototype.sendWavelet = function(channel, payload){
+AtomSignal.prototype.sendWavelet = function(channel, payload, paramList){
 	var payload = payload || this.defaultPayload;
 	try{
 		if(typeof payload != "string"){ //case of cli - the json inputs are already string
 			console.debug("AtomSignal sendWavelet - stringifying payload");
 			payload = JSON.stringify(payload);
+		}
+		if(paramList){
+			payload+=`---<end-of-message>---${paramList.join("#$#")}`;
 		}
 		this.sock.send([channel, payload]);
 		this.wavelets.push({"channel": channel, "payload": payload, "timestamp": Date.now()});
@@ -132,6 +135,15 @@ AtomSignal.prototype.sendWavelet = function(channel, payload){
 	}
 }
 
+
+AtomSignal.prototype.destroy = function(){
+	try{
+	    this.sock.close();
+	}catch(e){
+		console.error(`Error: ${this.getLabel()} destroying signal - ${e.message}`)
+	} 
+	this.ended = true;
+}
 
 AtomSignal.constructFromSpec = async (signalSpec) => {
 	return new Promise(async (resolve, reject)=>{
@@ -219,7 +231,7 @@ AtomSignal.constructFromSpec = async (signalSpec) => {
 	});
 }
 
-AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
+AtomSignal.publishToInterface = async (interfaceLabel, message, paramList) => {
 	var signalSpec = LEXICON.SignalSpec.inflect({
 		targetInterfaceLabel: interfaceLabel,
 		signalType: "publisher"
@@ -243,11 +255,11 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, lexeme) => {
 		// (also tried sock._zmq.onSendReady - but doesn't seem to fire)
 		// this approach is unreliable - tba a reliable approach.
 			try{
-				if(lexeme){
-					let inflection = lexeme.inflect(message);
-					message = inflection.getWithLabel();
-				}
-				signal.sendWavelet(signal.channel, message);
+				// if(lexeme){
+				// 	// let inflection = lexeme.inflect(message);
+				// 	// message = inflection.getWithLabel();
+				// }
+				signal.sendWavelet(signal.channel, message, paramList);
 
 				status.update({
 					error: false,
@@ -301,7 +313,9 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		signal.sock.subscribe(signal.channel);
 
 		signal.sock.on("message", async (_topicName, message) => {
-		    console.log(chalk.yellow(`${signal.getLabel()} - 
+			var epoch = Date.now();
+
+		    console.log(chalk.yellow(`${signal.getLabel()}:::${epoch} - 
 		      received a message related to:
 		      ${_topicName.toString()}, 
 		      containing message:
@@ -313,7 +327,7 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		    		op: `EVENT:::${op}`,
 		    		label: signal.channel,
 		    		result: JSON.parse(message.toString()),
-		    		epoch: Date.now()
+		    		epoch: epoch
 		    	});
 
 		    	console.debug(chalk.blue(`EVENT:::${signal.getLabel()} - ${_inflection.stringify()}`))

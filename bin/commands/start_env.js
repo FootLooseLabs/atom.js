@@ -70,12 +70,12 @@ var cleanPort = async (port) => {
 	});
 }
 
-var startInterface = async (_interface) => {
+var startInterface = async (_interface, idx) => {
 	process.chdir(process.nucleus.BaseDir);
 	process.chdir(`${path.resolve(_interface.dir)}`);
 	// execSync(`npm run start&`, {stdio: 'inherit'});
 
-	console.log("INFO: Staring Interface - ", _interface._name);
+	console.log("INFO: Staring Interface - ", `[${idx}.] `,_interface._name);
 	
 	// try{
 	// 	await cleanPort(_interface.port);
@@ -138,11 +138,11 @@ var startEnv = (configPath=__dirname) => {
 	// 	console.log("-------------------------------------- STARTED INTERFACE -------------------------------------- ", _atomSubprocess._name);
 	// });
 
-	process.nucleus.AtomInterfacesDefined.forEach((_interface)=>{
-		startInterface(_interface);
+	process.nucleus.AtomInterfacesDefined.forEach((_interface, idx)=>{
+		startInterface(_interface, idx);
 	});
 
-	console.log("started atom env...");
+	// console.log("started atom env...");
 }
 
 var handleInterrupts = function(signalEv) {

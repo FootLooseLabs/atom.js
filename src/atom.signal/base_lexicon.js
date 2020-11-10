@@ -25,7 +25,8 @@ LEXICON.SignalStatus = class Lexicon extends Lexeme {
 LEXICON.Publication = class Lexicon extends Lexeme {
   static schema = {
     op: null, 
-    message: "", 
+    label: null,
+    result: null,
     epoch: 0
   };
 }
