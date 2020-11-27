@@ -37,11 +37,13 @@ function AtomCmpInterface (options){
     connections: {}
   }
   this.prefix = "Atom.Interface:::";
+  this.connectionsDelimiter = "<-->";
   this.name = options.name;
   this.config = options.config || {};
   this.sock = null;
   this.middlewares = [];
   this.connections = {};
+  this.eventHandlers = {};
 
   this.eventEmitter = new events.EventEmitter();
 
@@ -164,14 +166,37 @@ AtomCmpInterface.prototype.ack2 = function(){
 }
 
 
+AtomCmpInterface.prototype.initEventHandlers = function () {
+  var _interfaceEventHandlersConfig = this.config.eventHandlers;
+  for(var key in _interfaceEventHandlersConfig){
+
+    if(this.eventHandlers[key]){return;} //already registered
+
+    console.debug("Initialising eventHandler - ", key);
+
+    try{
+      component.on(`${key}`, _interfaceEventHandlersConfig[key]);
+       this.eventHandlers[key] = true;
+    }catch(e){
+       this.eventHandlers[key] = false;
+       console.error("Error: ", e);
+    }
+
+  }
+}
+
+
 AtomCmpInterface.prototype.initConnections = function () {
   var _interfaceConnectionsConfig = this.config.connections;
   for(var key in _interfaceConnectionsConfig){
 
     if(this.connections[key] && this.connections[key].statusCode == 2){return;}
 
-    console.debug("initConnections Subscribing with - ", _interfaceConnectionsConfig[key]);
-    this.connections[key] = signal.subscribeToInterface(_interfaceConnectionsConfig[key]);
+    console.debug("Initialising connection - ", _interfaceConnectionsConfig[key]);
+
+    let [interfaceToConnect, cbOperation] = _interfaceConnectionsConfig[key].split(this.connectionsDelimiter);
+
+    this.connections[key] = signal.subscribeToInterface(interfaceToConnect);
 
     if(this.connections[key]){
       this.connections[key].then((signalStatus)=>{
@@ -180,6 +205,11 @@ AtomCmpInterface.prototype.initConnections = function () {
           // console.debug("_________________RORCommander listening at RORAgent.OperationSpaceUpdates_________________");
           signalStatus.signal.eventEmitter.on(`${signalStatus.signal.channel}`,async (msg)=>{
             component.emit(`interface.${key}`, msg);
+            try{
+              component[cbOperation](msg); //don't await this call
+            }catch(err){
+              console.error(`Error: component Callback Operation for connection = ${_interfaceConnectionsConfig[key]} Failed - `, e);
+            }
           });
         }
         this.connections[key] = signalStatus;
@@ -255,10 +285,10 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   }
 }
 
-AtomCmpInterface.prototype._bindCmpProcess = function() {
+AtomCmpInterface.prototype._bindCmpProcess = async function() {
   if(component.__start__){
     try{
-      component.__start__();
+      await component.__start__();
     }catch(e){
       console.error("Error: component process failed - ", e);
       process.exit();
@@ -267,12 +297,22 @@ AtomCmpInterface.prototype._bindCmpProcess = function() {
 }
 
 AtomCmpInterface.prototype._bindConnections = function (argument) {
-  process.nucleus.on(`AgentActivated:::Atom.Interface:::@drona/ror.agent`, (agentAd)=>{
-    if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
-      console.debug(this.name,":::heard:::AgentActivated = ", agentAd.name);
-      this.initConnections();
-    }
-  });
+
+  var _interfaceConnectionsConfig = this.config.connections;
+
+  for(var key in _interfaceConnectionsConfig){
+    console.debug("Binding connection - ", _interfaceConnectionsConfig[key]);
+
+    let connInterfaceSocket = _interfaceConnectionsConfig[key].split(this.connectionsDelimiter)[0].split("|||")[0];
+
+    process.nucleus.on(`AgentActivated:::Atom.Interface:::${connInterfaceSocket}`, (agentAd)=>{
+      if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
+        console.debug(this.name,":::heard:::AgentActivated = ", agentAd.name);
+        this.initConnections();
+      }
+    });
+    
+  }
 
   process.nucleus.on("ready",()=>{
     this.initConnections();
@@ -283,8 +323,16 @@ AtomCmpInterface.prototype.processInterfaceUri = function(_message) {
   return _message.split("#$#");
 }
 
-AtomCmpInterface.prototype.activate = function() {
-  this._bindCmpProcess();
+AtomCmpInterface.prototype.activate = async function() {
+  try{
+    await this._bindCmpProcess();
+  }catch(e){
+    console.error("Error: component activation failed - ", e);
+    process.exit();
+  }
+
+  this.initEventHandlers();
+
   this._bindConnections();
 
   this.sock.on("message", async (_lexemeName, _message) => {
@@ -421,7 +469,7 @@ AtomCmpInterface.prototype.advertise = function() {
 }
 
 
-AtomCmpInterface.prototype.advertiseAndActivate = function() {
+AtomCmpInterface.prototype.advertiseAndActivate = function() { //activate & then advertise (tb renamed accordingly later)
   process.title = `${this.prefix}${this.name}`;
   this.activate();
   this.advertise();
