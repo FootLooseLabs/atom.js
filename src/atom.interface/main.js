@@ -168,6 +168,7 @@ AtomCmpInterface.prototype.ack2 = function(){
 
 AtomCmpInterface.prototype.initEventHandlers = function () {
   var _interfaceEventHandlersConfig = this.config.eventHandlers;
+
   for(var key in _interfaceEventHandlersConfig){
 
     if(this.eventHandlers[key]){return;} //already registered
@@ -175,7 +176,7 @@ AtomCmpInterface.prototype.initEventHandlers = function () {
     console.debug("Initialising eventHandler - ", key);
 
     try{
-      component.on(`${key}`, _interfaceEventHandlersConfig[key]);
+      component.on(`${key}`, (msg)=>{_interfaceEventHandlersConfig[key].call(this, msg, this)});
        this.eventHandlers[key] = true;
     }catch(e){
        this.eventHandlers[key] = false;
