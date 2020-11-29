@@ -78,7 +78,7 @@ AtomSignal.prototype.__init__ = function() {
 
 
 AtomSignal.prototype.getLabel = function() {
-	let label = `${this.labelPrefix}${this.signalType}<--->${this.interface.label}`;
+	let label = `${this.labelPrefix}${this.signalType}<--->${this.interface ? this.interface.label : "no-interface"}`;
 	this.signalType == "subscriber" ? label += `|||${this.channel}` : `:::${this.channel}`;
 	return label;
 }

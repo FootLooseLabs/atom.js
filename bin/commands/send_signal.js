@@ -22,33 +22,61 @@ var MessageSpec = {
 	payload: null
 }
 
-var sendWaveletCLI = (_signal) => {
+var AvailableAgents = [];
+
+var SelectedAgent = null;
+
+var listAvailableAgents = async () => {
+	AvailableAgents = await AtomNucleus.getAllInterfaceActivity();
+	console.log("Available Agent-Interfaces: ");
+	AvailableAgents.forEach((_agent, idx)=>{
+		console.log(`${idx+1}.)`, _agent);
+	});
+}
+
+var sendWaveletCLI = () => {
 	console.log("\n");
-	console.log(`[${_signal.wavelets.length}.] send signal wavelets -->`);
-	rl.question("topic? ", (topic) => {
+	rl.question("topic (lexeme)? ", (topic) => {
     	MessageSpec.topic = topic;
-    	rl.question("message? ", (message) => {
+    	rl.question("message? ", async (message) => {
     		MessageSpec.message = message;
-    		_signal.sendWavelet(MessageSpec.topic, MessageSpec.message);
-    		sendWaveletCLI(_signal);
+
+    		try{
+    			var signalStatus = await AtomSignal.publishToInterface(`${SelectedAgent}:::${MessageSpec.topic}`, MessageSpec.message);
+    			if(!signalStatus.error){
+                	console.log("operation initiated");
+                }else{
+                	console.error("operation failed");
+                }
+    		}catch(e){
+    			console.error("Error: ", e);
+    		}
+    		// _signal.sendWavelet(MessageSpec.topic, MessageSpec.message);
+    		sendWaveletCLI();
     	});
     });
 }
 
 var sendAtomSignalCLI = () => {
-	rl.question("port?", (portNo) => {
-		SignalSpec.port = portNo;
-		try{
-			var _signal = new AtomSignal(SignalSpec);
-		}catch(e){
-			console.error(`Error: ${e}`);
-		}
-	   	sendWaveletCLI(_signal); 
-	});
 
-	rl.on("close", function() {
-	    process.exit(0);
-	});
+	process.nucleus.on("ready", async ()=>{
+        await listAvailableAgents();
+
+        rl.question(`interface ( 1 -to- ${AvailableAgents.length} ) ?`, (selectedIdx) => {
+			SelectedAgent = AvailableAgents[selectedIdx];
+			// try{
+			// 	var _signal = AtomSignal.publishToInterface()
+			// 	// var _signal = new AtomSignal(SignalSpec);
+			// }catch(e){
+			// 	console.error(`Error: ${e}`);
+			// }
+		   	sendWaveletCLI(); 
+		});
+
+		rl.on("close", function() {
+		    process.exit(0);
+		});
+    });
 } 
 
 module.exports = sendAtomSignalCLI;
