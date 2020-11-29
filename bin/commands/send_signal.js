@@ -63,7 +63,7 @@ var sendAtomSignalCLI = () => {
         await listAvailableAgents();
 
         rl.question(`interface ( 1 -to- ${AvailableAgents.length} ) ?`, (selectedIdx) => {
-			SelectedAgent = AvailableAgents[selectedIdx];
+			SelectedAgent = AvailableAgents[selectedIdx-1];
 			// try{
 			// 	var _signal = AtomSignal.publishToInterface()
 			// 	// var _signal = new AtomSignal(SignalSpec);
