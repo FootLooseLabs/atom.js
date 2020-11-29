@@ -42,7 +42,7 @@ var sendWaveletCLI = () => {
     		MessageSpec.message = message;
 
     		try{
-    			var signalStatus = await AtomSignal.publishToInterface(`${SelectedAgent}:::${MessageSpec.topic}`, MessageSpec.message);
+    			var signalStatus = await AtomSignal.publishToInterface(`${SelectedAgent.name}:::${MessageSpec.topic}`, MessageSpec.message);
     			if(!signalStatus.error){
                 	console.log("operation initiated");
                 }else{
