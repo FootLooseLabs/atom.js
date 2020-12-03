@@ -169,26 +169,47 @@ AtomCmpInterface.prototype.ack2 = function(){
 AtomCmpInterface.prototype.initEventHandlers = function () {
   var _interfaceEventHandlersConfig = this.config.eventHandlers;
 
-  for(var key in _interfaceEventHandlersConfig){
+  // for(var key in _interfaceEventHandlersConfig){
 
-    if(this.eventHandlers[key]){return;} //already registered
+  //   if(this.eventHandlers[key]){return;} //already registered
 
-    console.debug("Initialising eventHandler - ", key);
+  //   console.debug("Initialising eventHandler - ", key);
 
-    try{
-      component.on(`${key}`, (msg)=>{_interfaceEventHandlersConfig[key].call(this, msg, this)});
-       this.eventHandlers[key] = true;
-    }catch(e){
-       this.eventHandlers[key] = false;
-       console.error("Error: ", e);
-    }
+  //   try{
+  //     component.on(`${key}`, (msg)=>{_interfaceEventHandlersConfig[key].call(this, msg, this)});
+  //      this.eventHandlers[key] = true;
+  //   }catch(e){
+  //      this.eventHandlers[key] = false;
+  //      console.error("Error: ", e);
+  //   }
 
-  }
+  // }
+  if(!_interfaceEventHandlersConfig) {return;}
+  // try{
+    Object.keys(_interfaceEventHandlersConfig).forEach((key)=>{
+      if(this.eventHandlers[key] != true){ //else already registered
+        try{
+          component.on(`${key}`, (msg)=>{_interfaceEventHandlersConfig[key].call(this, msg, this)});
+          this.eventHandlers[key] = true;
+          console.debug("Initialised eventHandler - ", key);
+        }catch(e){
+          this.eventHandlers[key] = false;
+          console.error(`Error: failed to initialise eventHandler-${key}: `, e);
+        }
+      }
+    });
+  // }catch(e){
+  //   console.error(e);
+  //   console.error(`Error: eventHandlers config initialisation failed: `, e);
+  // }
 }
 
 
 AtomCmpInterface.prototype.initConnections = function () {
   var _interfaceConnectionsConfig = this.config.connections;
+
+  if(!_interfaceConnectionsConfig){return;}
+  
   for(var key in _interfaceConnectionsConfig){
 
     if(this.connections[key] && this.connections[key].statusCode == 2){return;}

@@ -21,7 +21,7 @@ AtomNucleus.parseEnvConfig = (_dir) => {
 		return ini.parse(fs.readFileSync(_dir, 'utf-8'));
 	}catch(e){
 		console.error("Error: ", e);
-		return;
+		return e;
 	}
 }
 
@@ -97,14 +97,23 @@ AtomNucleus.addAtomSubprocess = (_process,_interfaceSubprocess) => {
 }
 
 AtomNucleus.init = (configAbsDir, _process) => {
+	var _config;
 	try{
-		_process.nucleus.Config = AtomNucleus.parseEnvConfig(configAbsDir);
+		_config = AtomNucleus.parseEnvConfig(configAbsDir);
 	}catch(e){
 		console.error(`Failed parsing nucleus env config = ${configAbsDir}, \n Error = `, e);
 		return;
 	}
 
+	if(_config instanceof Error) {
+		console.error(`Failed parsing nucleus env config = ${configAbsDir} - ${_config.message}`)
+		return;
+	}
+
+	_process.nucleus.Config = _config;
+
 	console.log("Sucessfully parsed env config");
+
 	_process.nucleus.AtomInterfacesRunning = [];
 	_process.nucleus.BaseDir = path.dirname(configAbsDir);
 	_process.nucleus.EnvModel = _process.nucleus.getEnvModel(_process.nucleus.Config);
