@@ -4,6 +4,8 @@ const fs = require('fs');
 const path = require("path");
 const ini = require('ini');
 
+const chalk = require('chalk');
+
 // var events = require("events");
 // var eventEmitter = new events.EventEmitter();
 
@@ -20,7 +22,7 @@ AtomNucleus.parseEnvConfig = (_dir) => {
 	try{
 		return ini.parse(fs.readFileSync(_dir, 'utf-8'));
 	}catch(e){
-		console.error("Error: ", e);
+		// console.error("Error: ", e);
 		return e;
 	}
 }
@@ -101,13 +103,13 @@ AtomNucleus.init = (configAbsDir, _process) => {
 	try{
 		_config = AtomNucleus.parseEnvConfig(configAbsDir);
 	}catch(e){
-		console.error(`Failed parsing nucleus env config = ${configAbsDir}, \n Error = `, e);
-		return;
+		console.error(chalk.red(`Failed parsing nucleus env config = ${configAbsDir}, \n Error = `, e));
+		return e;
 	}
 
 	if(_config instanceof Error) {
-		console.error(`Failed parsing nucleus env config = ${configAbsDir} - ${_config.message}`)
-		return;
+		console.error(chalk.red(`Failed parsing nucleus env config = ${configAbsDir}`));
+		return _config;
 	}
 
 	_process.nucleus.Config = _config;

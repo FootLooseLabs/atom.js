@@ -120,6 +120,7 @@ var startInterface = async (_interface, idx) => {
 
 
 var startEnv = (configPath=__dirname) => {
+	var error;
 	if(!configPath){
 		console.log("No config path provided");
 	}	
@@ -130,14 +131,23 @@ var startEnv = (configPath=__dirname) => {
 
 	// console.log("process.nucleus = ", process.nucleus);
 
-	process.nucleus.init(configAbsDir, process);
-	process.nucleus.initEnvLogsDir(process);
+	var initEnvRes;
+	try{
+		initEnvRes = process.nucleus.init(configAbsDir, process);
+	}catch(e){
+		error = e; 
+	}
 
-
+	if(error || initEnvRes instanceof Error){
+		console.error("exiting...")
+		process.exit(1);
+		// return;
+	}
 	// eventEmitter.on("subprocess-added", (_atomSubprocess)=>{
 	// 	console.log("-------------------------------------- STARTED INTERFACE -------------------------------------- ", _atomSubprocess._name);
 	// });
 
+	process.nucleus.initEnvLogsDir(process);
 	process.nucleus.AtomInterfacesDefined.forEach((_interface, idx)=>{
 		startInterface(_interface, idx);
 	});
