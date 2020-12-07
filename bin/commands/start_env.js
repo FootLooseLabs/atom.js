@@ -69,12 +69,12 @@ var cleanPort = async (port) => {
 	});
 }
 
-var startInterface = async (_interface, idx) => {
+var startInterface = async (_interface) => {
 	process.chdir(process.nucleus.BaseDir);
 	process.chdir(`${path.resolve(_interface.dir)}`);
 	// execSync(`npm run start&`, {stdio: 'inherit'});
 
-	console.log("INFO: Staring Interface - ", `[${idx}.] `,_interface._name);
+	console.log("INFO: Staring Interface - ",_interface._name);
 
 	var _name = `@Atom.Interface:::${_interface._name}`;
 	try{
@@ -83,7 +83,7 @@ var startInterface = async (_interface, idx) => {
 		
 	}
 	try{
-		var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start', '&']);
+		var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start']);
 
 		process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
 	}catch(e){
@@ -123,10 +123,14 @@ var startEnv = (configPath="./") => {
 	// 	console.log("-------------------------------------- STARTED INTERFACE -------------------------------------- ", _atomSubprocess._name);
 	// });
 
-	process.nucleus.initEnvLogsDir(process);
-	process.nucleus.AtomInterfacesDefined.forEach((_interface, idx)=>{
-		startInterface(_interface, idx);
-	});
+	// process.nucleus.initEnvLogsDir(process);
+
+	for(var idx in process.nucleus.AtomInterfacesDefined){
+		startInterface(process.nucleus.AtomInterfacesDefined[idx]);
+	}
+	// process.nucleus.AtomInterfacesDefined.forEach((_interface, idx)=>{
+	// 	startInterface(_interface, idx);
+	// });
 
 	// console.log("started atom env...");
 }
