@@ -14,7 +14,12 @@ var startSyncNucluesDaemon = (cb=()=>{}) => {
 	process.title = `Atom.Nucleus`;
 	console.log("starting atom.nucleus daemon");
 
-	var stdout = execSync(`pm2 stop ${DAEMON_DIR}; pm2 start ${DAEMON_DIR} --name "@Atom.NucleusDaemon"`, {all: 'inherit'});
+	try{
+		execSync(`pm2 stop ${DAEMON_DIR};`, {all: 'inherit'});
+	}catch(e){
+	}
+
+	var stdout = execSync(`pm2 start ${DAEMON_DIR} --name "@Atom.NucleusDaemon"`, {all: 'inherit'});
 
 	// subprocess.on("atom-nucleus-daemon-started", ()=>{
 		console.log(stdout.toString());

@@ -89,7 +89,13 @@ var startInterface = async (_interface, idx) => {
 	(async ()=>{
 		try{
 			var _name = `@Atom.Interface:::${_interface._name}`;
-			await execa('pm2', ['stop', `${_name}`]);
+			try{
+				await execa('pm2', ['stop', `${_name}`]);
+			}catch(e){
+				
+			}
+
+			
 			var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start', '&']);
 			// _interfaceSubprocess.nucleus = process.nucleus;
 			// _interfaceSubprocess._name = _interface.name;
