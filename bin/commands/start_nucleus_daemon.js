@@ -3,16 +3,40 @@
 
 
 const path = require("path");
-const { execSync } = require("child_process");
+const { exec, execSync } = require("child_process");
+const execa = require('execa');
 
+const ora = require('ora');
 
+const DAEMON_DIR = path.join(__dirname, '../daemons/nucleusEnvDaemon.js'); 
 
-var startNucluesDaemon = () => {
+var startSyncNucluesDaemon = (cb=()=>{}) => {
 	process.title = `Atom.Nucleus`;
-	console.log("starting atom.nucleus");
+	console.log("starting atom.nucleus daemon");
 
-	execSync(`node ${path.join(__dirname, '../daemons/nucleusEnvDaemon.js')}`, {stdio: 'inherit'});
-	console.log("done");
+	var stdout = execSync(`pm2 stop ${DAEMON_DIR}; pm2 start ${DAEMON_DIR} --name "@Atom.NucleusDaemon"`, {all: 'inherit'});
+
+	// subprocess.on("atom-nucleus-daemon-started", ()=>{
+		console.log(stdout.toString());
+		console.log("## atom-nucleus-daemon-started ##");
+
+
+	// 	if(cb){
+	// 		cb();
+	// 	}
+	// });
+
+	if(cb){
+		var spinner = ora('waiting aribiratrily for 3s for atom.nucleus to be ready...').start();
+		spinner.color = 'yellow';
+		setTimeout(()=>{
+			spinner.stop();
+			console.info("executing the callback provided...")
+			cb();
+		},3000);
+	}
+	// console.debug("DONE:");
+	// console.debug("DEBUG: subprocess = ", subprocess);
 	// var diont = require('diont')({
 	// 	broadcast: true
 	// });
@@ -35,4 +59,4 @@ var startNucluesDaemon = () => {
 
 // process.on('exit', handleInterrupts);
 
-module.exports = startNucluesDaemon;
+module.exports = startSyncNucluesDaemon;

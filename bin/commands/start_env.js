@@ -5,15 +5,14 @@ const path = require("path");
 // const { execSync } = require("child_process");
 const execa = require('execa');
 
+const startSyncNucleusDaemon = require("./start_nucleus_daemon");
+
 const chalk = require('chalk');
 
 var events = require("events");
 var eventEmitter = new events.EventEmitter();
 
 // const zmq = require("zeromq");
-
-
-process.nucleus = require("atom").Nucleus;
 
 // const logSock = zmq.socket("pub");
 // logSock.bind("tcp://0.0.0.0:5140");
@@ -89,7 +88,7 @@ var startInterface = async (_interface, idx) => {
 
 	(async ()=>{
 		try{
-			var _interfaceSubprocess = execa('npm', ['run','start'], {stdio: logMode});
+			var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=@Atom.Interface:::${_interface._name}`, '--', 'start']);
 			// _interfaceSubprocess.nucleus = process.nucleus;
 			// _interfaceSubprocess._name = _interface.name;
 			
@@ -119,13 +118,16 @@ var startInterface = async (_interface, idx) => {
 }
 
 
-var startEnv = (configPath=__dirname) => {
+var startEnv = (configPath="./") => {
+	process.nucleus = require("atom").Nucleus;
+
 	var error;
 	if(!configPath){
 		console.log("No config path provided");
 	}	
 	var configAbsDir = path.resolve(configPath);
 	
+	console.debug("DEBUG: configAbsDir = ", configAbsDir);
 
 	console.log("Info: ","starting interfaces in config");
 
@@ -183,4 +185,10 @@ process.on('SIGTERM', handleInterrupts);
 
 process.on('exit', handleInterrupts);
 
-module.exports = startEnv;
+
+
+var startNucluesAndEnv = (configPath="./") => {
+	startSyncNucleusDaemon(()=>{startEnv(configPath)});
+}
+
+module.exports = startNucluesAndEnv;

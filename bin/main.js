@@ -3,12 +3,11 @@ const { spawnSync, execSync } = require("child_process");
 
 const { program } = require('commander');
 
-var commands = require('require-all')({
-  dirname     :  __dirname + '/commands',
-  excludeDirs :  /^\.(git|svn)$/,
-  recursive   : true
-});
-
+// var commands = require('require-all')({
+//   dirname     :  __dirname + '/commands',
+//   excludeDirs :  /^\.(git|svn)$/,
+//   recursive   : true
+// });
 
 program
   .option('-d, --debug', 'output extra debugging')
@@ -49,17 +48,17 @@ if (program.debug) console.log(program.opts());
 if (program.init) {
 	console.log('init atom component');
 	// console.log("commands = ", commands);
-	commands.init_atom_component();
+	require("./commands/init_atom_component")();
 };
 if (program.start) {
 	console.log('start/run atom.nucleus daemon');
 	// console.log("commands = ", commands);
-	commands.start_nucleus_daemon();
+	require("./commands/start_nucleus_daemon")();
 };
 if (program.signal) {
 	console.log('cli to send atom signals');
 	// console.log("commands = ", commands);
-	commands.send_signal();
+	require("./commands/send_signal")();
 };
 
 if (program.startintrospectiveinterface) {
@@ -67,12 +66,12 @@ if (program.startintrospectiveinterface) {
 	console.log('\t - discover & interact with interfaces available in the env \n');
 	console.log('\t - send atom signals \n');
 	// console.log("commands = ", commands);
-	commands.start_introspective_interface();
+	require("./commands/start_introspective_interface")	();
 };
 
 
 if (program.startenv) {
-	console.log('starting atom env - ', program.opts().startenv.toString());
+	console.log('starting atom env - defined in config file = ', program.opts().startenv.toString());
 	// console.log("commands = ", commands);
-	commands.start_env(program.opts().startenv.toString());
+	require("./commands/start_env")(program.opts().startenv.toString());
 };

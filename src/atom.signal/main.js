@@ -97,26 +97,6 @@ AtomSignal.prototype._connect = function() {
 	}
 }
 
-// function discoverAndConnect(cmpLabel=cmpLabel) {
-// 	diont.on("serviceAnnounced", function(serviceInfo) {
-// 		// A service was announced
-// 		// This function triggers for services not yet available in diont.getServiceInfos()
-// 		// serviceInfo is an Object { isOurService : Boolean, service: Object }
-// 		// service.name, service.host and service.port are always filled
-// 		console.log("A new service was announced", serviceInfo.service);
-// 		// List currently known services
-// 		console.log("All known services", diont.getServiceInfos());
-// 	});
-// }
-
-
-// function discover(port=_port) {
-// 	sock.bindSync(`tcp://127.0.0.1:${port}`);
-// 	console.log(`Pubber bound to port ${port}`);
-// }
-
-
-
 AtomSignal.prototype.sendWavelet = function(channel, payload, paramList){
 	var payload = payload || this.defaultPayload;
 	try{

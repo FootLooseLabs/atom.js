@@ -1,5 +1,7 @@
 //PENDING - restart all atom.interfaces running - upon Nucleus RESTART
 
+var events = require("events");
+
 const RedisServer = require('redis-server');
 // var diont = require('diont')();
 const kill = require('kill-port');
@@ -14,13 +16,18 @@ const CONFIG = {
 }
 
 
+process.title = "Atom.NucleusDaemon";
+
 const NucleusDaemon = {
 	server: null,
 	redisClient: null,
 	diont: null
 }
+NucleusDaemon.diont = require('diont')({
+	broadcast: true
+});
 
-var handleAdvertisements = function() {
+NucleusDaemon.handleAdvertisements = function() {
 	// ======
 	// Listen for announcements and renouncements in services
 	// ======
@@ -43,13 +50,13 @@ var handleAdvertisements = function() {
 	NucleusDaemon.diont.on("serviceRenounced", function(serviceInfo) {
 		serviceInfo.service.running = false;
 		NucleusDaemon.redisClient.set(`${serviceInfo.service.label}`, JSON.stringify(serviceInfo.service));
-		console.log(chalk.red("Info: Atom.Nucleus: An existing interface was renounced", JSON.stringify(serviceInfo.service)));
+		console.log(chalk.orange("Info: Atom.Nucleus: An existing interface was renounced", JSON.stringify(serviceInfo.service)));
 		// console.log("All known interfaces", NucleusDaemon.diont.getServiceInfos());
 	});
 }
 
 
-var startRedisServer = () => {
+NucleusDaemon.startRedisServer = () => {
 
 	return new Promise((resolve, reject) => {
 		try{	
@@ -78,7 +85,7 @@ var startRedisServer = () => {
 }
 
 
-var startRedisClient = () => {
+NucleusDaemon.startRedisClient = () => {
 	NucleusDaemon.redisClient = redis.createClient();
 			
 	NucleusDaemon.redisClient.on("error", function(err) {
@@ -88,7 +95,7 @@ var startRedisClient = () => {
 	console.log("Info: ", "started Atom.Nucleus default client");
 }
 
-var cleanPorts = async () => {
+NucleusDaemon.cleanPorts = async () => {
 	console.log("Info: cleaning atom.nucleus ports...");
 	return new Promise((resolve, reject)=>{
 		kill(CONFIG.REDIS_PORT).then(async () => {
@@ -97,33 +104,50 @@ var cleanPorts = async () => {
 	      	// kill(CONFIG.DIONT_PORT, 'udp').then(()=>{
 	      	// 	console.info("Info:", "cleaned port = ", CONFIG.DIONT_PORT);
 	      	// })
-	      	
-		    await startRedisServer();
-
-			startRedisClient();
-
-			console.log("Info: AtomNucleus running...");
 	    });
 	});
 }
 
 
+NucleusDaemon.initSync = async () => {
+	try{
+		await NucleusDaemon.cleanPorts();
+	}catch(e){
+		console.error(chalk.red(`Error: failed to clean ports - ${e}`));
+	}
 
-cleanPorts();
-NucleusDaemon.diont = require('diont')({
-	broadcast: true
-});
-handleAdvertisements();
+	try{
+		await NucleusDaemon.startRedisServer();
+	}catch(e){
+		console.error(chalk.red(`Error: failed to start redis server - ${e}`));
+	}
 
+
+	process.nextTick(() => {
+		process.emit("atom-nucleus-daemon-started", true);
+	});
+
+	NucleusDaemon.handleAdvertisements();
+
+	// NucleusDaemon.startRedisClient();
+
+	
+
+	// process.emit("atom-nucleus-daemon-started", true);
+
+	// console.log("Info: AtomNucleus running...");
+}
+
+NucleusDaemon.initSync();
 
 
 var handleInterrupts = function(signalEv) {
   	console.log(`Info: Received Interrupt = ${signalEv}`);
   	if(NucleusDaemon.server){
 		NucleusDaemon.server.close((err) => {
-		  if (err) {
-		  	throw `Error: ${err.message}`
-		  }
+		  // if (err) {
+		  // 	throw `Error: ${err.message}`
+		  // }
 		  console.log("Info: atom.Nucleus shutdown properly");
 		});
 	}
