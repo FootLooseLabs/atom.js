@@ -75,54 +75,20 @@ var startInterface = async (_interface, idx) => {
 	// execSync(`npm run start&`, {stdio: 'inherit'});
 
 	console.log("INFO: Staring Interface - ", `[${idx}.] `,_interface._name);
-	
-	// try{
-	// 	await cleanPort(_interface.port);
-	// }catch(e){
-	// 	console.log(e);
-	// }
 
-	var runMode = getKwarg("mode");
-	var logMode = runMode == "dev" ? ["inherit", "inherit", "inherit", "ipc"] : "pipe";
-	
+	var _name = `@Atom.Interface:::${_interface._name}`;
+	try{
+		await execa('pm2', ['stop', `${_name}`]);
+	}catch(e){
+		
+	}
+	try{
+		var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start', '&']);
 
-	(async ()=>{
-		try{
-			var _name = `@Atom.Interface:::${_interface._name}`;
-			try{
-				await execa('pm2', ['stop', `${_name}`]);
-			}catch(e){
-				
-			}
-
-			
-			var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start', '&']);
-			// _interfaceSubprocess.nucleus = process.nucleus;
-			// _interfaceSubprocess._name = _interface.name;
-			
-			if(logMode == "pipe"){
-				_interface.stdout = createInterfaceLogStream.stdout(_interface);
-				_interface.stderr = createInterfaceLogStream.stderr(_interface);
-
-				_interfaceSubprocess.stdout.pipe(_interface.stdout);
-				_interfaceSubprocess.stderr.pipe(_interface.stderr);
-			}
-
-			// console.log("=================== _interfaceSubprocess ==================== ", _interfaceSubprocess);
-
-			// _interfaceSubprocess.on("message",(ev)=>{
-			// 	console.log("--------------------interface message--------------------\n", ev);
-			// });
-			process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
-			// eventEmitter.emit("subprocess-added", _interfaceSubprocess);
-			
-			// console.log("started interface");
-		}catch(e){
-			// console.log(_interfaceSubprocess.killed);
-			// console.log(e.isCanceled);
-			console.error("-------------:Error:------------- \n ", e);
-		}
-	})();
+		process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
+	}catch(e){
+		console.error("-------------:Error:------------- \n ", e);
+	}
 }
 
 
@@ -145,7 +111,7 @@ var startEnv = (configPath="./") => {
 	try{
 		initEnvRes = process.nucleus.init(configAbsDir, process);
 	}catch(e){
-		error = e; 
+		error = e;
 	}
 
 	if(error || initEnvRes instanceof Error){
