@@ -2,7 +2,7 @@ const kill = require('kill-port');
 
 const fs = require('fs');
 const path = require("path");
-// const { execSync } = require("child_process");
+const { exec, execSync } = require("child_process");
 const execa = require('execa');
 
 const startSyncNucleusDaemon = require("./start_nucleus_daemon");
@@ -78,12 +78,12 @@ var startInterface = async (_interface) => {
 
 	var _name = `@Atom.Interface:::${_interface._name}`;
 	try{
-		await execa('sudo pm2', ['stop', `${_name}`]);
+		await exec(`sudo pm2 stop ${_name}`);
 	}catch(e){
 		
 	}
 	try{
-		var _interfaceSubprocess = execa('sudo pm2', ['start','npm', `--name=${_name}`, '--', 'start']);
+		var _interfaceSubprocess = exec(`sudo pm2 start npm --name=${_name} -- start`);
 
 		process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
 	}catch(e){
