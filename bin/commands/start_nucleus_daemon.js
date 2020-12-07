@@ -16,11 +16,11 @@ var startSyncNucluesDaemon = (cb=()=>{}) => {
 	console.log("starting atom.nucleus daemon");
 
 	try{
-		execSync(`pm2 stop ${_PROGRAM_NAME};`, {all: 'inherit'});
+		execSync(`sudo pm2 stop ${_PROGRAM_NAME};`, {all: 'inherit'});
 	}catch(e){
 	}
 
-	var stdout = execSync(`pm2 start ${DAEMON_DIR} --name ${_PROGRAM_NAME}`, {all: 'inherit'});
+	var stdout = execSync(`sudo pm2 start ${DAEMON_DIR} --name ${_PROGRAM_NAME}`, {all: 'inherit'});
 
 	// subprocess.on("atom-nucleus-daemon-started", ()=>{
 		console.log(stdout.toString());

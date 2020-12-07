@@ -78,12 +78,12 @@ var startInterface = async (_interface) => {
 
 	var _name = `@Atom.Interface:::${_interface._name}`;
 	try{
-		await execa('pm2', ['stop', `${_name}`]);
+		await execa('sudo pm2', ['stop', `${_name}`]);
 	}catch(e){
 		
 	}
 	try{
-		var _interfaceSubprocess = execa('pm2', ['start','npm', `--name=${_name}`, '--', 'start']);
+		var _interfaceSubprocess = execa('sudo pm2', ['start','npm', `--name=${_name}`, '--', 'start']);
 
 		process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
 	}catch(e){
