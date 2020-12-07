@@ -9,17 +9,18 @@ const execa = require('execa');
 const ora = require('ora');
 
 const DAEMON_DIR = path.join(__dirname, '../daemons/nucleusEnvDaemon.js'); 
+const _PROGRAM_NAME = "@Atom.NucleusDaemon";
 
 var startSyncNucluesDaemon = (cb=()=>{}) => {
 	process.title = `Atom.Nucleus`;
 	console.log("starting atom.nucleus daemon");
 
 	try{
-		execSync(`pm2 stop ${DAEMON_DIR};`, {all: 'inherit'});
+		execSync(`pm2 stop ${_PROGRAM_NAME};`, {all: 'inherit'});
 	}catch(e){
 	}
 
-	var stdout = execSync(`pm2 start ${DAEMON_DIR} --name "@Atom.NucleusDaemon"`, {all: 'inherit'});
+	var stdout = execSync(`pm2 start ${DAEMON_DIR} --name ${_PROGRAM_NAME}`, {all: 'inherit'});
 
 	// subprocess.on("atom-nucleus-daemon-started", ()=>{
 		console.log(stdout.toString());
