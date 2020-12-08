@@ -1,6 +1,0 @@
-[submodule "Diont"]
-	path = Diont
-	url = https://github.com/apratimankur/Diont
-[submodule "lib/Diont"]
-	path = lib/Diont
-	url = https://github.com/apratimankur/Diont

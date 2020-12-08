@@ -6,11 +6,13 @@
 		"atom": "./bin/main.js"
 	},
 	"config": {},
-	"scripts": {},
+	"scripts": {
+		"postinstall": ""
+	},
 	"dependencies": {
 		"chalk": "^4.1.0",
 		"commander": "^5.0.0",
-		"diont": "file:lib/Diont",
+		"diont": "git+https://github.com/apratimankur/Diont",
 		"eventemitter2": "^6.4.3",
 		"execa": "^4.0.3",
 		"folder-structure-generator": "^1.0.5",
