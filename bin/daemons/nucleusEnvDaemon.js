@@ -109,7 +109,7 @@ NucleusDaemon.cleanPorts = async () => {
 }
 
 
-NucleusDaemon.initSync = async () => {
+NucleusDaemon.init = async () => {
 	try{
 		await NucleusDaemon.cleanPorts();
 	}catch(e){
@@ -138,7 +138,7 @@ NucleusDaemon.initSync = async () => {
 	// console.log("Info: AtomNucleus running...");
 }
 
-NucleusDaemon.initSync();
+NucleusDaemon.init();
 
 
 var handleInterrupts = function(signalEv) {

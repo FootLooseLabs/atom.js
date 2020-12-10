@@ -77,20 +77,25 @@ var startInterface = async (_interface) => {
 	console.log("INFO: Staring Interface - ",_interface._name);
 
 	var _name = `@Atom.Interface:::${_interface._name}`;
-	try{
-		await exec(`sudo pm2 stop ${_name}`);
-	}catch(e){
-		
-	}
-	try{
-		var _interfaceSubprocess = exec(`sudo pm2 start npm --name=${_name} -- start`);
 
+
+	if(getKwarg("mode")=="dev"){
+		let _interfaceSubprocess = exec(`sudo npm run dev`);
 		process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
-	}catch(e){
-		console.error("-------------:Error:------------- \n ", e);
+	}else{
+		try{
+			await exec(`sudo npm run stop`);
+		}catch(e){
+			
+		}
+		try{
+			let _interfaceSubprocess = exec(`sudo npm run start &`);
+			process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
+		}catch(e){
+			console.error("-------------:Error:------------- \n ", e);
+		}
 	}
 }
-
 
 var startEnv = (configPath="./") => {
 	process.nucleus = require("atom").Nucleus;
@@ -102,8 +107,6 @@ var startEnv = (configPath="./") => {
 	var configAbsDir = path.resolve(configPath);
 	
 	console.debug("DEBUG: configAbsDir = ", configAbsDir);
-
-	console.log("Info: ","starting interfaces in config");
 
 	// console.log("process.nucleus = ", process.nucleus);
 
@@ -124,6 +127,25 @@ var startEnv = (configPath="./") => {
 	// });
 
 	// process.nucleus.initEnvLogsDir(process);
+
+	// console.table((({ _name, port }) => ({ _name, port }))(process.nucleus.AtomInterfacesDefined));
+
+	// let table = process.nucleus.AtomInterfacesDefined.reduce(function(result, item) {
+	//   var name = item._name;
+	//   result[`${item._name}`] = [item.port, item.dir];
+	//   return result;
+	// }, {});
+
+	let table = process.nucleus.AtomInterfacesDefined.map(function(item) {
+	  return {
+	  	name: item._name,
+	  	port: item.port,
+	  	dir: item.dir
+	  };
+	});
+
+	console.info("\nInfo: ","starting the following interfaces as per config: ");
+	console.table(table);
 
 	for(var idx in process.nucleus.AtomInterfacesDefined){
 		startInterface(process.nucleus.AtomInterfacesDefined[idx]);
@@ -146,16 +168,16 @@ var handleInterrupts = function(signalEv) {
 
     // console.info("Info: ", "terminated process that was using the port: ", this.config.port);
 
-    if(process.nucleus.AtomInterfacesRunning){
-	    process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
-	    	_interfaceProc.cancel();
-	    });
-	}
+ //    if(process.nucleus.AtomInterfacesRunning){
+	//     process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
+	//     	_interfaceProc.cancel();
+	//     });
+	// }
 
-    setTimeout(()=>{
-      console.info("Info:", `Terminated Atom.Env`);
-      process.exit();
-    },2000);
+ //    setTimeout(()=>{
+ //      console.info("Info:", `Terminated Atom.Env`);
+ //      process.exit();
+ //    },2000);
 }
 
 process.on('SIGINT', handleInterrupts);
