@@ -42,6 +42,9 @@ NucleusDaemon.handleAdvertisements = function() {
 		serviceInfo.service.running = true;
 
 		console.info(`Info: Atom.Nucleus: Saving advertisement - ${serviceInfo.service.label}`);
+
+		console.debug("DEBUG: ", "NucleusDaemon.redisClient - ", NucleusDaemon.redisClient);
+
 		NucleusDaemon.redisClient.set(`${serviceInfo.service.label}`, JSON.stringify(serviceInfo.service));
 		// console.log("All known interfaces", NucleusDaemon.diont.getServiceInfos());
 		console.log(chalk.yellow("Info: Atom.Nucleus: A new interface was announced", JSON.stringify(serviceInfo.service)));
@@ -130,9 +133,7 @@ NucleusDaemon.init = async () => {
 
 	NucleusDaemon.handleAdvertisements();
 
-	// NucleusDaemon.startRedisClient();
-
-	
+	NucleusDaemon.startRedisClient();
 
 	// process.emit("atom-nucleus-daemon-started", true);
 
