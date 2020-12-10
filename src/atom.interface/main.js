@@ -487,6 +487,8 @@ AtomCmpInterface.prototype.advertise = function() {
   });
 
   process.nucleus.announceInterface(this.ad.get());
+
+  console.debug("DEBUG: process.nucleus = ", process.nucleus);
   console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", this.ad.stringify()));
 }
 

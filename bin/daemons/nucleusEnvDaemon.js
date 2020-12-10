@@ -41,7 +41,7 @@ NucleusDaemon.handleAdvertisements = function() {
 		// List currently known services
 		serviceInfo.service.running = true;
 
-		console.log(`Info: Atom.Nucleus: Saving metadata on redis - ${serviceInfo.service.label}`, serviceInfo.service);
+		console.log(`Info: Atom.Nucleus: Saving advertisement - ${serviceInfo.service.label}`);
 		NucleusDaemon.redisClient.set(`${serviceInfo.service.label}`, JSON.stringify(serviceInfo.service));
 		// console.log("All known interfaces", NucleusDaemon.diont.getServiceInfos());
 		console.log(chalk.yellow("Info: Atom.Nucleus: A new interface was announced", JSON.stringify(serviceInfo.service)));
