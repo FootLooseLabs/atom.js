@@ -222,14 +222,14 @@ AtomCmpInterface.prototype.initConnections = function () {
 
     if(this.connections[key]){
       this.connections[key].then((signalStatus)=>{
-        console.debug("RORCommander Subscription Signal Response - signalStatus channel = ", signalStatus.signal.channel);
+        // console.debug(`${this.name}<-->${key} Signal Response - signalStatus channel = `, signalStatus.signal.channel);
         if(!signalStatus.error){
-          // console.debug("_________________RORCommander listening at RORAgent.OperationSpaceUpdates_________________");
+          // console.debug(`_________________${this.name}<-->${key} connection is active_________________`);
           signalStatus.signal.eventEmitter.on(`${signalStatus.signal.channel}`,async (msg)=>{
             component.emit(`interface.${key}`, msg);
             try{
               component[cbOperation](msg); //don't await this call
-            }catch(err){
+            }catch(e){
               console.error(`Error: component Callback Operation for connection = ${_interfaceConnectionsConfig[key]} Failed - `, e);
             }
           });
