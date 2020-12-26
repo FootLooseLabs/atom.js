@@ -26,7 +26,7 @@ var broadcast = async (broadcastString) => { //broadcastString format = @flpl/de
 
 	
 		try{
-			var signalStatus = await AtomSignal.publishToInterface(`${targetInterfaceName}:::${targetInterfaceOp}`, payload);
+			var signalStatus = await AtomSignal.publishToInterface(`${targetInterfaceName}:::${targetInterfaceOp}`, JSON.stringify(payload));
 			if(!signalStatus.error){
 	        	console.log("operation initiated");
 	        }else{
