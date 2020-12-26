@@ -66,13 +66,13 @@ AtomNucleus.getLogStream = (interfaceName, streamType="stdout") => {
 	//   });
 }
 
-AtomNucleus.initEnvLogsDir = (_process)=>{
-	process.chdir(_process.nucleus.BaseDir);
+// AtomNucleus.initEnvLogsDir = (_process)=>{
+// 	process.chdir(_process.nucleus.BaseDir);
 
-	if (!fs.existsSync(_process.nucleus.EnvLogDir)){
-	    fs.mkdirSync(_process.nucleus.EnvLogDir);
-	}
-}
+// 	if (!fs.existsSync(_process.nucleus.EnvLogDir)){
+// 	    fs.mkdirSync(_process.nucleus.EnvLogDir);
+// 	}
+// }
 
 AtomNucleus.getInterfaceLogDir = (_interface) => {
 	return path.join(process.nucleus.EnvLogDir, _interface._name)
@@ -84,11 +84,11 @@ AtomNucleus.getInterfacesInEnvConfig = (config)=>{ //NOTE - 'interface' is a res
 	}).map((_interfaceKey)=>{
 		config[_interfaceKey]._key = _interfaceKey; //for internal use
 		config[_interfaceKey]._name = _interfaceKey.split(":")[1]; //for internal use
-		let interfaceLogsDir = AtomNucleus.getInterfaceLogDir(config[_interfaceKey]);
-		config[_interfaceKey].logsDir = {
-			stdout: path.join(interfaceLogsDir,"stdout.log"),
-			stderr: path.join(interfaceLogsDir,"stderr.log")
-		};
+		// let interfaceLogsDir = AtomNucleus.getInterfaceLogDir(config[_interfaceKey]);
+		// config[_interfaceKey].logsDir = {
+		// 	stdout: path.join(interfaceLogsDir,"stdout.log"),
+		// 	stderr: path.join(interfaceLogsDir,"stderr.log")
+		// };
 		return config[_interfaceKey];
 	})
 }
@@ -119,7 +119,7 @@ AtomNucleus.init = (configAbsDir, _process) => {
 	_process.nucleus.AtomInterfacesRunning = [];
 	_process.nucleus.BaseDir = path.dirname(configAbsDir);
 	_process.nucleus.EnvModel = _process.nucleus.getEnvModel(_process.nucleus.Config);
-	_process.nucleus.EnvLogDir = path.resolve(path.join(_process.nucleus.BaseDir,_process.nucleus.EnvModel.logs));
+	// _process.nucleus.EnvLogDir = path.resolve(path.join(_process.nucleus.BaseDir,_process.nucleus.EnvModel.logs));
 	_process.nucleus.AtomInterfacesDefined = _process.nucleus.getInterfacesInEnvConfig(_process.nucleus.Config);
 }
 

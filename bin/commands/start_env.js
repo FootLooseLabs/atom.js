@@ -74,7 +74,7 @@ var startInterface = async (_interface) => {
 	process.chdir(`${path.resolve(_interface.dir)}`);
 	// execSync(`npm run start&`, {stdio: 'inherit'});
 
-	console.log("INFO: Staring Interface - ",_interface._name);
+	console.log("INFO: Staring Interface - ",`${_interface._name} : , [${process.cwd()}]`);
 
 	var _name = `@Atom.Interface:::${_interface._name}`;
 
@@ -91,6 +91,7 @@ var startInterface = async (_interface) => {
 		try{
 			let _interfaceSubprocess = exec(`sudo npm run start &`);
 			process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
+			console.debug("DEBUG: ",`Started ${_interface._name}`);
 		}catch(e){
 			console.error("-------------:Error:------------- \n ", e);
 		}
@@ -118,7 +119,7 @@ var startEnv = (configPath="./") => {
 	}
 
 	if(error || initEnvRes instanceof Error){
-		console.error("exiting...")
+		console.error("exiting...coz of error - ", error || initEnvRes);
 		process.exit(1);
 		// return;
 	}

@@ -15,7 +15,8 @@ program
   .option('-s, --start', 'start atom nucleus daemon')
   .option('-ss, --signal', 'send signal')
   .option('-sii, --startintrospectiveinterface', 'start introspective interface')
-  .option('-senv, --startenv <config-path>', 'start atom environment');
+  .option('-senv, --startenv <config-path>', 'start atom environment')
+  .option('-b, --broadcast <interface-payload>', 'broadcast <interface>:::<payload> ( Eg format - `atom -b @flpl/devops:::GetIntro:::{}` )');
 
  if (process.argv.length <= 2) {
  	program.help();
@@ -74,4 +75,10 @@ if (program.startenv) {
 	console.log('starting atom env - defined in config file = ', program.opts().startenv.toString());
 	// console.log("commands = ", commands);
 	require("./commands/start_env")(program.opts().startenv.toString());
+};
+
+
+if (program.broadcast) {
+	console.log('ATOM: preparing broadcast -', program.opts().broadcast.toString());
+	require("./commands/broadcast")(program.opts().broadcast.toString());
 };
