@@ -3,9 +3,7 @@ var Lexeme = require('../atom.lexicon/main');
 const BASE_LEXICON = {
   "GetIntro": class Lexicon extends Lexeme {
     static schema = {
-      "sender": {
-        "port": null
-      }
+      "sender": null
     };
   },
   "Update": class Lexicon extends Lexeme {

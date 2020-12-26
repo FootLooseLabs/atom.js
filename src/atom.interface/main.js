@@ -288,6 +288,11 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
 
   console.log("RESPONSE ============================== \n ", response);
 
+  if(!sender || !sender.split){
+    console.info("INFO: ", `No sender identified (sender = ${JSON.stringify(sender)} )`,"...just logging response - ");
+    console.info("RESPONSE = \n", response);
+    return;
+  }
   if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
     sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
   }

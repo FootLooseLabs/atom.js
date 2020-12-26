@@ -35,6 +35,8 @@ var broadcast = async (broadcastString) => { //broadcastString format = @flpl/de
 		}catch(e){
 			console.error("Error: ", e);
 		}
+
+		process.exit(0)
 	});
 }
 
