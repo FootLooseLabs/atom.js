@@ -71,13 +71,13 @@ var cleanPort = async (port) => {
 
 var startInterface = async (_interface) => {
 	process.chdir(process.nucleus.BaseDir);
-	process.chdir(`${path.resolve(_interface.dir)}`);
+
+	// process.chdir(`${path.resolve(_interface.dir)}`);
 	// execSync(`npm run start&`, {stdio: 'inherit'});
+	_interface.absDir = path.resolve(_interface.dir);
+	console.log(`INFO: Starting Interface ${_interface._name}`,"\n", `at dir = ${_interface.absDir}`);
 
-	console.log("INFO: Staring Interface - ",`${_interface._name} : , [${process.cwd()}]`);
-
-	var _name = `@Atom.Interface:::${_interface._name}`;
-
+	// var _name = `@Atom.Interface:::${_interface._name}`;
 
 	if(getKwarg("mode")=="dev"){
 		let _interfaceSubprocess = exec(`sudo npm run dev`);
@@ -89,9 +89,11 @@ var startInterface = async (_interface) => {
 			
 		}
 		try{
-			let _interfaceSubprocess = exec(`sudo npm run start &`);
+			let _interfaceSubprocess = exec(`cd ${_interface.absDir} && sudo npm run start`);
+			_interfaceSubprocess._interfaceInfo = _interface;
 			process.nucleus.addAtomSubprocess(process, _interfaceSubprocess);
-			console.debug("DEBUG: ",`Started ${_interface._name}`);
+
+			console.debug("DEBUG: ",`Started ${_interface._name} at dir = ${_interface.absDir}`);
 		}catch(e){
 			console.error("-------------:Error:------------- \n ", e);
 		}
@@ -160,25 +162,17 @@ var startEnv = (configPath="./") => {
 
 var handleInterrupts = function(signalEv) {
   	console.log(`Info: Received Interrupt = ${signalEv}`);
-  	// kill(this.config.port).then(() => {
-   //      console.info("Info: ", "terminated process that was using the port: ", this.config.port);
-   //      process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
-   //      	_interfaceProc.cancel();
-   //      });
-   //  });
-
-    // console.info("Info: ", "terminated process that was using the port: ", this.config.port);
-
- //    if(process.nucleus.AtomInterfacesRunning){
-	//     process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
-	//     	_interfaceProc.cancel();
-	//     });
-	// }
-
- //    setTimeout(()=>{
- //      console.info("Info:", `Terminated Atom.Env`);
- //      process.exit();
- //    },2000);
+  	
+    if(process.nucleus.AtomInterfacesRunning){
+	    process.nucleus.AtomInterfacesRunning.forEach((_interfaceProc)=>{
+	    	exec(`cd ${_interfaceProc._interfaceInfo.absDir} && sudo npm run stop`);
+	    	_interfaceProc.kill();
+	    });
+	}
+    setTimeout(()=>{
+      console.info("Info:", `Terminated Atom.Env`);
+      process.exit();
+    },2000);
 }
 
 process.on('SIGINT', handleInterrupts);
