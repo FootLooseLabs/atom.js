@@ -7,6 +7,11 @@ const chalk = require('chalk');
 
 // var diont = require('diont')();
 process.nucleus = require('../atom.nucleus/main');
+
+process.nucleus.on("error",()=>{
+  console.error(chalk.blue("Error: ", `interface nucleus errored. shutting down.`));
+  process.exit();
+});
 // var lexeme = require('../atom.lexicon/main');
 var signal = require('../atom.signal/main');
 
