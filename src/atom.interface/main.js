@@ -507,6 +507,11 @@ AtomCmpInterface.prototype.advertiseAndActivate = function() { //activate & then
   process.title = `${this.prefix}${this.name}`;
   this.activate();
   this.advertise();
+
+  process.nucleus.on("ready", ()=> {
+    this.activate();
+    this.advertise();
+  });
 }
 
 

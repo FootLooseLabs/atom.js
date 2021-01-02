@@ -18,8 +18,13 @@ AtomNucleus.redisClient.on('connect', function () {
 
 
 AtomNucleus.redisClient.on("error", function(err) {
-	console.log(`WARNING: Atom.Nucleus is not running - \n ( to start atom.nuclueus please run: ${chalk.blue("atom -s")} )`);
-	AtomNucleus.emit("error", err);
+	console.error(`${chalk.red("ERROR: Atom.Nucleus is not running")} - \n ( to start atom.nuclueus please run: ${chalk.blue("atom -s")} )`);
+	// console.warn("is emit a function - ", AtomNucleus.emit);
+	try{
+		AtomNucleus.emit("error", err);
+	}catch(err){
+		process.exit(); //not happening - pending debug of listenerCount err.
+	}
 });
 
 
