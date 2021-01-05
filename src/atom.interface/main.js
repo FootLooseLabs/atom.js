@@ -346,9 +346,13 @@ AtomCmpInterface.prototype._bindConnections = function (argument) {
     
   }
 
-  process.nucleus.on("ready",()=>{
+  if(process.nucleus.readystate == 4){
     this.initConnections();
-  });
+  }else{
+    process.nucleus.on("ready",()=>{
+      this.initConnections();
+    });
+  }
 }
 
 AtomCmpInterface.prototype.processInterfaceUri = function(_message) {
@@ -505,13 +509,16 @@ AtomCmpInterface.prototype.advertise = function() {
 
 AtomCmpInterface.prototype.advertiseAndActivate = function() { //activate & then advertise (tb renamed accordingly later)
   process.title = `${this.prefix}${this.name}`;
-  this.activate();
-  this.advertise();
 
-  process.nucleus.on("ready", ()=> {
+  if(process.nucleus.readystate == 4){
     this.activate();
     this.advertise();
-  });
+  }else{
+    process.nucleus.on("ready", ()=> {
+      this.activate();
+      this.advertise();
+    });
+  }
 }
 
 

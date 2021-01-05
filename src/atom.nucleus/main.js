@@ -5,7 +5,7 @@ const chalk = require('chalk');
 
 const AtomNucleus = require("./manageEnv");
 
-
+AtomNucleus.readystate = AtomNucleus.READYSTATES["LOADING"];
 AtomNucleus.diont = require('diont')();
 
 
@@ -13,6 +13,7 @@ AtomNucleus.redisClient = redis.createClient();
 
 AtomNucleus.redisClient.on('connect', function () {
     console.log('AtomNucleus redisClient connected');
+    AtomNucleus.readystate = AtomNucleus.READYSTATES["READY"];;
     AtomNucleus.emit("ready", AtomNucleus);
 });
 
@@ -21,6 +22,7 @@ AtomNucleus.redisClient.on("error", function(err) {
 	console.error(`${chalk.red("ERROR: Atom.Nucleus is not running")} - \n ( to start atom.nuclueus please run: ${chalk.blue("atom -s")} )`);
 	// console.warn("is emit a function - ", AtomNucleus.emit);
 	try{
+		AtomNucleus.readystate = AtomNucleus.READYSTATES["ERRORED"];;
 		AtomNucleus.emit("error", err);
 	}catch(err){
 		process.exit(); //not happening - pending debug of listenerCount err.
@@ -212,5 +214,5 @@ AtomNucleus.getInterfaceIfActive = (interfaceLabel) => {
 	});
 }
 
-
+AtomNucleus.readystate = AtomNucleus.READYSTATES["INTERACTIVE"];;
 module.exports = AtomNucleus;

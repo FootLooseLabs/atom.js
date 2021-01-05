@@ -9,7 +9,19 @@ const chalk = require('chalk');
 // var events = require("events");
 // var eventEmitter = new events.EventEmitter();
 
-const AtomNucleus = {};
+const READYSTATES = {
+	"NA" : 0,
+	"LOADING": 1,
+	"INTERACTIVE": 2,
+	"ERRORED": 3,
+	"READY": 4
+}
+
+const AtomNucleus = {
+	"READYSTATES": READYSTATES,
+	"readystate": READYSTATES["NA"]
+};
+
 
 AtomNucleus._eventEmitter = new events.EventEmitter();
 
