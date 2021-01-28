@@ -276,7 +276,7 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
   // let sender = inflection.get().sender;
   var { message, error, result } = msg;
 
-  console.debug(">>>>>>>>>>>>>>>REPLYING TO: ", sender, ", for OP: ", `${lexemeName}` ,", with MSG: ", msg);
+  console.debug("DEBUG: ", `${this.name}>>>REPLYING TO: `, sender, ", for OP: ", `${lexemeName}` ,", with MSG: ", msg);
 
   var label = this.config.lexicon[lexemeName].label;
   let response = this.config.lexicon["Response"].inflect({
@@ -291,7 +291,7 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
     this.publish(label, response.get());
   }
 
-  console.log("RESPONSE ============================== \n ", response);
+  console.debug("DEBUG: ", `${this.name}>>>RESPONSE = `, response);
 
   if(!sender || !sender.split){
     console.info("INFO: ", `No sender identified (sender = ${JSON.stringify(sender)} )`,"...just logging response - ");
