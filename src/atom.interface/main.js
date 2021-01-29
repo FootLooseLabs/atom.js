@@ -210,44 +210,43 @@ AtomCmpInterface.prototype.initEventHandlers = function () {
 }
 
 
-AtomCmpInterface.prototype.initConnections = function () {
+AtomCmpInterface.prototype.initConnections = async function () {
   var _interfaceConnectionsConfig = this.config.connections;
 
   if(!_interfaceConnectionsConfig){return;}
   
   for(var key in _interfaceConnectionsConfig){
 
+    console.debug("DEBUG: ", "Atom.Interface Existing Connection = ", this.connections[key]);
+
     if(this.connections[key] && this.connections[key].statusCode == 2){return;}
 
-    console.debug("Initialising connection - ", _interfaceConnectionsConfig[key]);
+    console.debug("DEBUG: Initialising Connection - ", _interfaceConnectionsConfig[key]);
 
     let [interfaceToConnect, cbOperation] = _interfaceConnectionsConfig[key].split(this.connectionsDelimiter);
 
-    this.connections[key] = signal.subscribeToInterface(interfaceToConnect);
 
-    if(this.connections[key]){
-      this.connections[key].then((signalStatus)=>{
-        // console.debug(`${this.name}<-->${key} Signal Response - signalStatus channel = `, signalStatus.signal.channel);
-        if(!signalStatus.error){
-          // console.debug(`_________________${this.name}<-->${key} connection is active_________________`);
-          signalStatus.signal.eventEmitter.on(`${signalStatus.signal.channel}`,async (msg)=>{
-            component.emit(`interface.${key}`, msg);
-            try{
-              component[cbOperation](msg); //don't await this call
-            }catch(e){
-              console.error(`Error: component Callback Operation for connection = ${_interfaceConnectionsConfig[key]} Failed - `, e);
-            }
-          });
+    try{
+      this.connections[key] = await signal.subscribeToInterface(interfaceToConnect);
+    }catch(e){
+      let err = `ERROR: Initialising Connection Between ${this.name} with ${key} --> ${e.message}`;
+      console.error(err);
+    }
+
+    if(!this.connections[key].error){
+      this.connections[key].signal.eventEmitter.on(`${this.connections[key].signal.channel}`,async (msg)=>{
+        component.emit(`interface.${key}`, msg);
+        try{
+          component[cbOperation](msg); //don't await this call
+        }catch(e){
+          console.error(`Error: component Callback Operation for connection = ${_interfaceConnectionsConfig[key]} Failed - `, e);
         }
-        this.connections[key] = signalStatus;
-      },(signalStatusErr)=>{
-        let err = `ERROR: Initialising Connection Between ${this.name} with ${key} --> ${signalStatusErr.message}`;
-        console.error(err);
-        this.connections[key] = Error(err);
       });
     }
+
   }
 }
+
 
 AtomCmpInterface.prototype.publish = async function(_label, msg){
   // let label = `${this.name}:::${_label}`;
