@@ -223,7 +223,7 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, paramList) => {
 		throw e;
 	}
 
-	console.debug("DEBUG: AtomSignal: Successfully Established - \n", establishedSignalStatus);
+	console.debug("DEBUG: AtomSignal: Successfully Established - \n", establishedSignalStatus.getLabel());
 
 	return new Promise(async (resolve, reject)=>{
 		var signal = establishedSignalStatus.signal;
@@ -282,7 +282,7 @@ AtomSignal.subscribeToInterface = async (interfaceLabel) => {
 		throw e;
 	}
 
-	console.debug("DEBUG: AtomSignal: Error Establishing - \n", establishedSignalStatus);
+	console.debug("DEBUG: AtomSignal: Successfully Established - \n", establishedSignalStatus.getLabel());
 
 	return new Promise(async (resolve, reject)=>{
 
