@@ -443,7 +443,7 @@ AtomCmpInterface.prototype.activate = async function() {
 
       if(inflection.get().sender){
 
-        console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
+        console.debug("DEBUG: ", `${this.name}>>>Message Sender = `, inflection.get().sender)
         
         this.reply(inflection.get().sender, _lexemeName, {
           message: message,
