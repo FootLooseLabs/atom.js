@@ -210,13 +210,17 @@ AtomCmpInterface.prototype.initEventHandlers = function () {
 }
 
 
-AtomCmpInterface.prototype.initConnection = async function(_connectionLabel, _connectionParam) {
+AtomCmpInterface.prototype._initConnection = async function(_connectionLabel, _connectionParam) {
+  return new Promise(async (resolve, reject)=> {
     var existingConnection =  this.connections[_connectionLabel];
-    console.debug("DEBUG: ", `Atom.Interface Existing Connection:<${_connectionLabel}>? = `, existingConnection);
 
-    if(existingConnection && existingConnection.statusCode == 2){return;}
+    if(existingConnection && existingConnection.statusCode == 2){
+      let msg = `Atom.Interface:::${this.name} Not Initialisng Connection as found Existing active Connection:<${_connectionLabel}>`;
+      console.debug("DEBUG: ", `${msg} = `, existingConnection);
+      return reject(msg);
+    }
 
-    console.debug("DEBUG: Initialising Connection - ", _connectionParam);
+    console.debug(`DEBUG: Initialising Connection:<${_connectionLabel}> - (${this.name} with ${_connectionParam})`);
 
     let [interfaceToConnect, cbOperation] = _connectionParam.split(this.connectionsDelimiter);
 
@@ -224,12 +228,13 @@ AtomCmpInterface.prototype.initConnection = async function(_connectionLabel, _co
     try{
       this.connections[_connectionLabel] = await signal.subscribeToInterface(interfaceToConnect);
     }catch(e){
-      let err = `ERROR: Couldn't Initialise Connection Between ${this.name} with ${_connectionLabel} - ${e.message}`;
-      console.error(err);
+      let err = `ERROR: Couldn't Initialise Connection:<${_connectionLabel}> - (${this.name} with ${_connectionParam}) - ${e.message}`;
+      return reject(err);
     }
 
     if(!this.connections[_connectionLabel].error){
       this.connections[_connectionLabel].signal.eventEmitter.on(`${this.connections[_connectionLabel].signal.channel}`,async (msg)=>{
+        console.debug("DEBUG: ", `Connection<${_connectionLabel}> Msg Received`);
         component.emit(`interface.${_connectionLabel}`, msg);
         try{
           component[cbOperation](msg); //don't await this call
@@ -238,18 +243,44 @@ AtomCmpInterface.prototype.initConnection = async function(_connectionLabel, _co
         }
       });
 
-      console.debug("DEBUG: ", `Sueccessfully Initialised Connection Between ${this.name} with ${_connectionLabel}`);
+      console.debug("DEBUG: ", `Sueccssfully Initialised Connection:<${_connectionLabel}> - (${this.name} with ${_connectionLabel})`);
+
+      return resolve(this.connections[_connectionLabel]);
     }
+  });
 }
 
 
-AtomCmpInterface.prototype.initAllConnections = async function () {
-  var _interfaceConnectionsConfig = this.config.connections;
+AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (_agentName) {
+  return this.config.connections.filter((_connectionConfigStr)=>{
+    return this._getConnTargetInterfaceName(_connectionConfigStr) == _agentName;
+  });
+}
 
-  if(!_interfaceConnectionsConfig){return;}
+// AtomCmpInterface.prototype.initConnectionsWithGivenAgent = function (_agentName) {
+//   console.debug("DEBUG: ", `initialising all Connections with Agent = ${_agentName}`);
 
-  for(var key in _interfaceConnectionsConfig){
-    await this.initConnection(key, _interfaceConnectionsConfig[key]);
+// }
+
+AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=this.config.connections) {
+
+  console.debug("DEBUG: ", `initialising Connections - ${ JSON.stringify(_connectionsToMake) }`);
+  if(!_connectionsToMake){return;}
+
+  for(var key in _connectionsToMake){
+    try{
+      await this.initConnection(key, _connectionsToMake[key]);
+    }catch(e){
+      console.error(e);
+      let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
+      process.nucleus.on(`AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`, (agentAd)=>{
+        if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
+          console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
+          // this.initConnection(key, _connectionsToMake[key]);
+          this._initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
+        }
+      });
+    }
   }
 }
 
@@ -332,29 +363,27 @@ AtomCmpInterface.prototype._bindCmpProcess = async function() {
   }
 }
 
+AtomCmpInterface.prototype._getConnTargetInterfaceName = function (_connectionConfigStr) {
+  return _connectionConfigStr.split(this.connectionsDelimiter)[0].split("|||")[0];
+}
+
 AtomCmpInterface.prototype._bindConnections = function (argument) {
 
   var _interfaceConnectionsConfig = this.config.connections;
 
-  for(var key in _interfaceConnectionsConfig){
-    console.debug("Binding connection - ", _interfaceConnectionsConfig[key]);
+  // for(var key in _interfaceConnectionsConfig){
+  //   console.debug(`DEBUG: Atom.Interface${this.name} Binding Connection:<${key}>`);
 
-    let connInterfaceAddr = _interfaceConnectionsConfig[key].split(this.connectionsDelimiter)[0].split("|||")[0];
+  //   let connTargetInterfaceName = this._getConnTargetInterfaceName(_interfaceConnectionsConfig[key]);
 
-    process.nucleus.on(`AgentActivated:::Atom.Interface:::${connInterfaceAddr}`, (agentAd)=>{
-      if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
-        console.debug(this.name,":::heard:::AgentActivated = ", agentAd.name);
-        this.initConnection(key, _interfaceConnectionsConfig[key]);
-      }
-    });
-    
-  }
+  //   console.debug("DEBUG: ", `Atom.Interface${this.name} Connection:<${key}> address = ${connTargetInterfaceName}`);
+  // }
 
   if(process.nucleus.readystate == 4){
-    this.initAllConnections();
+    this.initConnections();
   }else{
     process.nucleus.on("ready",()=>{
-      this.initAllConnections();
+      this.initConnections();
     });
   }
 }
