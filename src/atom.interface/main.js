@@ -269,7 +269,7 @@ AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=
 
   for(var key in _connectionsToMake){
     try{
-      await this.initConnection(key, _connectionsToMake[key]);
+      await this._initConnection(key, _connectionsToMake[key]);
     }catch(e){
       console.error(e);
       let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
@@ -277,7 +277,7 @@ AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=
         if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
           console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
           // this.initConnection(key, _connectionsToMake[key]);
-          this._initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
+          this.initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
         }
       });
     }
