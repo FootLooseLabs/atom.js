@@ -252,12 +252,17 @@ AtomCmpInterface.prototype._initConnection = async function(_connectionLabel, _c
 
 
 AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (_agentName) {
+  var _filteredConnections = [];
   if(!this.config.connections){
-    return [];
+    return _filteredConnections;
   }
-  return this.config.connections.filter((_connectionConfigStr)=>{
-    return this._getConnTargetInterfaceName(_connectionConfigStr) == _agentName;
-  });
+  for(var _key in this.config.connections) { 
+    if(this._getConnTargetInterfaceName(this.config.connections[key]) == _agentName){
+      let _conn = {};
+      _conn[_key] = this.config.connections[key];
+      _filteredConnections.push(_conn);
+    };
+  };
 }
 
 // AtomCmpInterface.prototype.initConnectionsWithGivenAgent = function (_agentName) {
