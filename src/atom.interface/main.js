@@ -257,9 +257,9 @@ AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (_agentName
     return _filteredConnections;
   }
   for(var _key in this.config.connections) { 
-    if(this._getConnTargetInterfaceName(this.config.connections[key]) == _agentName){
+    if(this._getConnTargetInterfaceName(this.config.connections[_key]) == _agentName){
       let _conn = {};
-      _conn[_key] = this.config.connections[key];
+      _conn[_key] = this.config.connections[_key];
       _filteredConnections.push(_conn);
     };
   };
