@@ -252,6 +252,9 @@ AtomCmpInterface.prototype._initConnection = async function(_connectionLabel, _c
 
 
 AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (_agentName) {
+  if(!this.config.connections){
+    return [];
+  }
   return this.config.connections.filter((_connectionConfigStr)=>{
     return this._getConnTargetInterfaceName(_connectionConfigStr) == _agentName;
   });
@@ -273,6 +276,8 @@ AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=
     }catch(e){
       console.error(e);
       let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
+      // to further optimise here -
+      // use this callback only once per agentAd.name
       process.nucleus.on(`AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`, (agentAd)=>{
         if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
           console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
