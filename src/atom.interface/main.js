@@ -285,6 +285,7 @@ AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=
     try{
       await this._initConnection(key, _connectionsToMake[key]);
     }catch(e){
+      this._connectionPromises[key] = false;
       console.error(e);
       let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
       // to further optimise here -
