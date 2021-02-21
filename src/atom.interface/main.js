@@ -48,6 +48,7 @@ function AtomCmpInterface (options){
   this.sock = null;
   this.middlewares = [];
   this.connections = {};
+  this._connectionPromises = {};
   this.eventHandlers = {};
 
   this.eventEmitter = new events.EventEmitter();
@@ -211,6 +212,9 @@ AtomCmpInterface.prototype.initEventHandlers = function () {
 
 
 AtomCmpInterface.prototype._initConnection = async function(_connectionLabel, _connectionParam) {
+  // if(this._connectionPromises[key]){
+
+  // }
   return new Promise(async (resolve, reject)=> {
     var existingConnection =  this.connections[_connectionLabel];
 
@@ -276,21 +280,26 @@ AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=
   if(!_connectionsToMake){return;}
 
   for(var key in _connectionsToMake){
-    try{
-      await this._initConnection(key, _connectionsToMake[key]);
-    }catch(e){
-      console.error(e);
-      let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
-      // to further optimise here -
-      // use this callback only once per agentAd.name
-      process.nucleus.on(`AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`, (agentAd)=>{
-        if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
-          console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
-          // this.initConnection(key, _connectionsToMake[key]);
-          this.initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
-        }
-      });
-    }
+    if(this._connectionPromises[key]){continue;}
+    this._connectionPromises[key] = new Promise(async (resolve, reject) => {
+      try{
+        let _conn = await this._initConnection(key, _connectionsToMake[key]);
+        return resolve(_conn);
+      }catch(e){
+        console.error(e);
+        let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
+        // to further optimise here -
+        // use this callback only once per agentAd.name
+        process.nucleus.on(`AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`, (agentAd)=>{
+          if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
+            console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
+            // this.initConnection(key, _connectionsToMake[key]);
+            this.initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
+          }
+        });
+        return reject(e);
+      }
+    });
   }
 }
 
