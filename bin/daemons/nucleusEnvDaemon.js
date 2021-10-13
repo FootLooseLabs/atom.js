@@ -142,6 +142,8 @@ NucleusDaemon.init = async () => {
 
 NucleusDaemon.init();
 
+process.stdin.resume();//so the program will not close instantly
+
 
 var handleInterrupts = function(signalEv) {
   	console.log(`Info: Received Interrupt = ${signalEv}`);
