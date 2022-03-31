@@ -16,7 +16,8 @@ program
   .option('-ss, --signal', 'send signal')
   .option('-sii, --startintrospectiveinterface', 'start introspective interface')
   .option('-senv, --startenv <config-path>', 'start atom environment')
-  .option('-b, --broadcast <interface-payload>', 'broadcast <interface>:::<payload> ( Eg format - `atom -b @flpl/devops:::GetIntro:::{}` )');
+  .option('-b, --broadcast <interface-payload>', 'broadcast <interface>:::<payload> ( Eg format - `atom -b @flpl/devops:::GetIntro:::{}` )')
+	.option('-a, --add <agent-label>','Add atom agent to registry');
 
  if (process.argv.length <= 2) {
  	program.help();
@@ -82,3 +83,14 @@ if (program.broadcast) {
 	console.log('ATOM: preparing broadcast -', program.opts().broadcast.toString());
 	require("./commands/broadcast")(program.opts().broadcast.toString());
 };
+
+if(program.add){
+	console.log("ATOM: Preparing add agent to registry -", program.opts().add.toString());
+	var dir = ''
+	if(program.add.toString() === 'true'){
+		dir = process.cwd();
+	}else{
+		dir = program.opts().add.toString()
+	}
+	require("./commands/add-agent-to registry")(dir)
+}
