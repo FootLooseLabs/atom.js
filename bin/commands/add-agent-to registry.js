@@ -1,45 +1,44 @@
 const path = require("path");
-const fs = require("fs");
-//var AtomNucleus = require('atom').Nucleus;
-
+const fs = require('fs');
+const yaml = require('js-yaml');
 
 var startAgentRegistrationProcess = (dir) => {
     console.log("Starting Registration of the agent", dir)
-    // process.nucleus.on("ready", async ()=>{
-    //     var getInterfaceInfo = await AtomNucleus.getInterfaceInfo(`Atom.Interface:::${dir}`)
-    //     var interfaceName = getInterfaceInfo.name;
-    //     var lexicons = getInterfaceInfo.lexicon;
-    //
-    //     console.log(interfaceName)
-    //     console.log(lexicons)
-    // });
-    // let data = fs.readFileSync(dir + "/src/interface.js", 'utf-8');
-    // data = data.split("\n").join("").split(" ").join("")
-    // var firstInstanceOfOpeningBrace = data.indexOf("{");
-    // let brackets = [];
-    // let str = [];
-    // brackets.push("{");
-    // str.push("{");
-    // console.log(brackets.length)
-    // for (var i = firstInstanceOfOpeningBrace + 1; i < data.length; i++) {
-    //     str.push(data[i])
-    //     if (data[i] === "{") {
-    //         brackets.push(data[i]);
-    //     } else if (data[i] === "}") {
-    //         if (brackets[brackets.length - 1] === "{") brackets.pop();
-    //     }
-    //
-    //     if (brackets.length === 0) break;
-    // }
-    // var interfaceSpecs = str.join("").replace(/lexicon.[a-zA-z]+/g,`""`).replace(/eventHandlers.[a-zA-z]+/g,`""`)
-    // console.log(eval(interfaceSpecs))
-    // console.log(interfaceSpecs.name);
-    var interfaceFile = require(path.join(dir,"src","interface.js"))
-    console.log(interfaceFile);
+    try {
+        let fileContents = fs.readFileSync(path.join(dir,"agent_specs.yaml"), 'utf8');
+        let data = yaml.load(fileContents);
+        data.interfaces = [...data.interfaces, ...data.event_handlers]
+
+        var request = {
+            "interface": "@footloose/agent-registry:::AddOrUpdateEntry",
+            "token": "",
+            "request": {
+                "request_type": "AddOrUpdate",
+                "entries": [data],
+                "sender": {}
+            }
+        }
+        var WebSocket = require('ws');
+        var ws = new WebSocket('wss://wsapi.footloose.io/wsapi/d5392136797a1bcfc78c61696df8ca31e29e250b?auth=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6ImFic3RyYWN0aW9uLWFwcEBmb290bG9vc2UuaW8iLCJyb2xlIjoiQUxMIiwibWF4X2Nvbm5lY3Rpb24iOjEwMCwic2VjdXJlSGFzaCI6ImQ1MzkyMTM2Nzk3YTFiY2ZjNzhjNjE2OTZkZjhjYTMxZTI5ZTI1MGIiLCJpYXQiOjE2MzgzMDI1ODl9.UzfsLe-EXz4Vox2HXOQEORsOV4_J20jmYLBlZHwKNhU');
+        ws.on('open', function () {
+            ws.send(JSON.stringify(request));
+        });
+        ws.on('message', function (data, flags) {
+            var response = JSON.parse(data.toString());
+            if (response.result === "done") {
+                console.log("Published Specs Successfully")
+            }
+        });
+        setTimeout(()=>{
+            console.log("Closing Connection after 10 Second")
+            ws.close();
+        },10000)
+    } catch (e) {
+        console.log(e);
+        throw e;
+    }
 
 }
-function normalizeJson(str){return str.replace(/"?([\w_\- ]+)"?\s*?:\s*?"?(.*?)"?\s*?([,}\]])/gsi, (str, index, item, end) => '"'+index.replace(/"/gsi, '').trim()+'":"'+item.replace(/"/gsi, '').trim()+'"'+end).replace(/,\s*?([}\]])/gsi, '$1');}
-
 
 
 module.exports = startAgentRegistrationProcess;
