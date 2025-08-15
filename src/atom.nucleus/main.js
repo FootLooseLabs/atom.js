@@ -46,7 +46,6 @@ AtomNucleus.getAllAdvertisedInterfaces  = (pattern, logLevel=1) => { //unreliabl
 		var cursor = '0';
 
 		function scan () {
-			console.debug("Atom.Nucleus Scanning Interfaces");
 		    AtomNucleus.redisClient.scan(
 		        cursor,
 		        'MATCH', pattern,
