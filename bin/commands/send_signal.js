@@ -9,6 +9,8 @@ const rl = readline.createInterface({
 
 const chalk = require('chalk');
 
+const fdTracker = require("../lib/track-fds");
+
 const AtomNucleus = require('atom').Nucleus;
 const AtomSignal = require('atom').Signal; //assumes (as requires) that atom js-sdk is globally installed on the system this is being run
 
