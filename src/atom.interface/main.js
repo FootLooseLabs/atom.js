@@ -1,36 +1,69 @@
 var events = require("events");
 
 var zmq = require("zeromq");
-const kill = require('kill-port');
+const kill = require("kill-port");
 
-const chalk = require('chalk');
+const chalk = require("chalk");
 
 // var diont = require('diont')();
-process.nucleus = require('../atom.nucleus/main');
+process.nucleus = require("../atom.nucleus/main");
 
-process.nucleus.on("error",()=>{
-  console.error(chalk.blue("Error: ", `interface nucleus errored. shutting down.`));
-  process.exit();
-});
+// Retry configuration for nucleus connection
+process.nucleusRetryAttempts = 0;
+process.maxNucleusRetryAttempts = 30; // Will retry for ~3 minutes (30 * 6s)
+process.nucleusRetryDelay = 6000; // 6 seconds
+
+process.setupNucleusConnection = function () {
+  process.nucleus.on("error", () => {
+    if (process.nucleusRetryAttempts < process.maxNucleusRetryAttempts) {
+      process.nucleusRetryAttempts++;
+      console.warn(
+        chalk.yellow(
+          `WARNING: Nucleus connection failed - Retry attempt ${process.nucleusRetryAttempts}/${process.maxNucleusRetryAttempts} in ${process.nucleusRetryDelay / 1000}s`,
+        ),
+      );
+
+      setTimeout(() => {
+        // Reload the nucleus module to retry connection
+        delete require.cache[require.resolve("../atom.nucleus/main")];
+        process.nucleus = require("../atom.nucleus/main");
+        process.setupNucleusConnection();
+      }, process.nucleusRetryDelay);
+    } else {
+      console.error(
+        chalk.red("ERROR: Failed to connect to nucleus after"),
+        process.maxNucleusRetryAttempts,
+        "attempts. Shutting down.",
+      );
+      process.exit();
+    }
+  });
+
+  process.nucleus.on("ready", () => {
+    process.nucleusRetryAttempts = 0; // Reset retry counter on successful connection
+    console.log(chalk.green("Nucleus connection established successfully"));
+  });
+};
+
+process.setupNucleusConnection();
 // var lexeme = require('../atom.lexicon/main');
-var signal = require('../atom.signal/main');
+var signal = require("../atom.signal/main");
 
 const BASE_LEXICON = require("./base_lexicon");
 
 global._instance = null;
 
-
-function AtomCmpInterface (options){
-  if (typeof component == 'undefined') {
+function AtomCmpInterface(options) {
+  if (typeof component == "undefined") {
     throw "Error: no component in scope";
   }
-  if(!component){
+  if (!component) {
     throw "Error: component is not an object";
   }
-  if(!options){
+  if (!options) {
     throw "Error: no options specified";
   }
-  if(!options.name){
+  if (!options.name) {
     throw "Error: no Name specified in options";
   }
 
@@ -39,8 +72,8 @@ function AtomCmpInterface (options){
     port: 7993,
     eventsPort: 7994,
     lexicon: {},
-    connections: {}
-  }
+    connections: {},
+  };
   this.prefix = "Atom.Interface:::";
   this.connectionsDelimiter = "<-->";
   this.name = options.name;
@@ -49,6 +82,8 @@ function AtomCmpInterface (options){
   this.middlewares = [];
   this.connections = {};
   this._connectionPromises = {};
+  this._connectionRetryTimeouts = {};
+  this._connectionRetryAttempts = {};
   this.eventHandlers = {};
 
   this.eventEmitter = new events.EventEmitter();
@@ -56,16 +91,15 @@ function AtomCmpInterface (options){
   this.eventsSock = zmq.socket("pub");
 
   this.__init__();
-};
+}
 
-
-AtomCmpInterface.prototype.__init__ = function() {
-  this.config = {...this.defaultConfig, ...this.config};
-  this.config.lexicon = {...BASE_LEXICON , ...this.config.lexicon}
+AtomCmpInterface.prototype.__init__ = function () {
+  this.config = { ...this.defaultConfig, ...this.config };
+  this.config.lexicon = { ...BASE_LEXICON, ...this.config.lexicon };
 
   this.__initComponentProps__();
 
-  this.config.eventsPort = this.config.port+1;
+  this.config.eventsPort = this.config.port + 1;
   // this.config.host = this.config.host || "127.0.0.1";
   // this.config.port = this.config.port || 8888;
   // this.config.lexicon = this.config.lexicon || [];
@@ -76,30 +110,28 @@ AtomCmpInterface.prototype.__init__ = function() {
 
   console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
-}
+};
 
-
-AtomCmpInterface.prototype.__initComponentProps__ = function() {
+AtomCmpInterface.prototype.__initComponentProps__ = function () {
   component.GetIntro = () => {
     var result = this.getSerialisedLexicon();
     console.log("GetIntro: ", result);
     return result;
-  }
+  };
 
   component.Update = (info) => {
     console.log("Update: ", info);
     return info;
-  }
+  };
 
   component._eventEmitter = new events.EventEmitter();
 
   component.emit = component._eventEmitter.emit;
 
   component.on = component._eventEmitter.on;
-}
+};
 
-
-AtomCmpInterface.prototype._initialiseSocket = function() {
+AtomCmpInterface.prototype._initialiseSocket = function () {
   this.sock = zmq.socket("sub");
 
   // this.sock.on('close', function(...toto) {
@@ -110,67 +142,84 @@ AtomCmpInterface.prototype._initialiseSocket = function() {
   // });
 
   _instance = this;
-  try{
+  try {
     this.sock.bindSync(this.address);
     this.eventsSock.bindSync(this.eventsSockAddress);
 
     console.info("Info:", "Initalised - ", `${this.name}@${this.address}`);
-  }catch(e){
-    if(e.message.includes("already in use") && this.config.port == this.defaultConfig.port){
+  } catch (e) {
+    if (
+      e.message.includes("already in use") &&
+      this.config.port == this.defaultConfig.port
+    ) {
       console.log("Error: ", e.message);
-      console.log("Info: terminating existing process using the port - ", this.config.port);
+      console.log(
+        "Info: terminating existing process using the port - ",
+        this.config.port,
+      );
       kill(this.config.port).then(() => {
-        console.info("Info: ", "terminated process that was using the port: ", this.config.port);
-        try{
+        console.info(
+          "Info: ",
+          "terminated process that was using the port: ",
+          this.config.port,
+        );
+        try {
           this.sock.bindSync(this.address);
-          console.info("Info:", "Initalised - ", `${this.name}@${this.address}`);
-        }catch(e){
+          console.info(
+            "Info:",
+            "Initalised - ",
+            `${this.name}@${this.address}`,
+          );
+        } catch (e) {
           throw `Error: ${e.message}`;
         }
       });
-    }else{
+    } else {
       throw `Error: ${e.message}`;
     }
   }
-  Object.keys(this.config.lexicon).forEach((_lexemeName)=>{
+  Object.keys(this.config.lexicon).forEach((_lexemeName) => {
     this.addLexeme(_lexemeName, this.config.lexicon[_lexemeName]);
-  })
-}
+  });
+};
 
-AtomCmpInterface.prototype.getSerialisedLexicon = function(){
-  return Object.keys(this.config.lexicon).map((_lexemeName)=>{
-    return {name: _lexemeName, lexeme: this.config.lexicon[_lexemeName] ? this.config.lexicon[_lexemeName].schema : null}
-  })
-}
+AtomCmpInterface.prototype.getSerialisedLexicon = function () {
+  return Object.keys(this.config.lexicon).map((_lexemeName) => {
+    return {
+      name: _lexemeName,
+      lexeme: this.config.lexicon[_lexemeName]
+        ? this.config.lexicon[_lexemeName].schema
+        : null,
+    };
+  });
+};
 
-AtomCmpInterface.prototype.addLexeme = function(_lexemeName, _lexemeDef) {
-   this.sock.subscribe(`${_lexemeName}`);
+AtomCmpInterface.prototype.addLexeme = function (_lexemeName, _lexemeDef) {
+  this.sock.subscribe(`${_lexemeName}`);
 
-   if(!Object.keys(this.config.lexicon).includes(_lexemeName)){ //case when this method is directly called
+  if (!Object.keys(this.config.lexicon).includes(_lexemeName)) {
+    //case when this method is directly called
     this.config.lexicon[_lexemeName] = _lexemeDef;
-   }
-   
-   console.log(chalk.blue("Info: ", `Lexeme = ${_lexemeName} available at ${this.prefix}${this.name}@${this.address}`));
-}
+  }
 
+  console.log(
+    chalk.blue(
+      "Info: ",
+      `Lexeme = ${_lexemeName} available at ${this.prefix}${this.name}@${this.address}`,
+    ),
+  );
+};
 
-AtomCmpInterface.prototype.addMiddleWare = function() {
+AtomCmpInterface.prototype.addMiddleWare = function () {};
 
-}
-
-AtomCmpInterface.prototype.processMsg = function(_message) {
+AtomCmpInterface.prototype.processMsg = function (_message) {
   console.log("INFO: ", "Processed Msg", JSON.parse(_message));
   return JSON.parse(_message);
-}
+};
 
-AtomCmpInterface.prototype.ack1 = function(){
+AtomCmpInterface.prototype.ack1 = function () {};
 
-}
-
-AtomCmpInterface.prototype.ack2 = function(){
-
-}
-
+AtomCmpInterface.prototype.ack2 = function () {};
 
 AtomCmpInterface.prototype.initEventHandlers = function () {
   var _interfaceEventHandlersConfig = this.config.eventHandlers;
@@ -190,168 +239,307 @@ AtomCmpInterface.prototype.initEventHandlers = function () {
   //   }
 
   // }
-  if(!_interfaceEventHandlersConfig) {return;}
+  if (!_interfaceEventHandlersConfig) {
+    return;
+  }
   // try{
-    Object.keys(_interfaceEventHandlersConfig).forEach((key)=>{
-      if(this.eventHandlers[key] != true){ //else already registered
-        try{
-          component.on(`${key}`, (msg)=>{_interfaceEventHandlersConfig[key].call(this, msg, this)});
-          this.eventHandlers[key] = true;
-          console.debug("Initialised eventHandler - ", key);
-        }catch(e){
-          this.eventHandlers[key] = false;
-          console.error(`Error: failed to initialise eventHandler-${key}: `, e);
-        }
+  Object.keys(_interfaceEventHandlersConfig).forEach((key) => {
+    if (this.eventHandlers[key] != true) {
+      //else already registered
+      try {
+        component.on(`${key}`, (msg) => {
+          _interfaceEventHandlersConfig[key].call(this, msg, this);
+        });
+        this.eventHandlers[key] = true;
+        console.debug("Initialised eventHandler - ", key);
+      } catch (e) {
+        this.eventHandlers[key] = false;
+        console.error(`Error: failed to initialise eventHandler-${key}: `, e);
       }
-    });
+    }
+  });
   // }catch(e){
   //   console.error(e);
   //   console.error(`Error: eventHandlers config initialisation failed: `, e);
   // }
-}
+};
 
-
-AtomCmpInterface.prototype._initConnection = async function(_connectionLabel, _connectionParam) {
+AtomCmpInterface.prototype._initConnection = async function (
+  _connectionLabel,
+  _connectionParam,
+) {
   // if(this._connectionPromises[key]){
 
   // }
-  return new Promise(async (resolve, reject)=> {
-    var existingConnection =  this.connections[_connectionLabel];
+  return new Promise(async (resolve, reject) => {
+    var existingConnection = this.connections[_connectionLabel];
 
-    if(existingConnection && existingConnection.statusCode == 2){
+    if (existingConnection && existingConnection.statusCode == 2) {
       let msg = `Atom.Interface:::${this.name} Not Initialisng Connection as found Existing active Connection:<${_connectionLabel}>`;
       console.debug("DEBUG: ", `${msg} = `, existingConnection);
       return reject(msg);
     }
 
-    console.debug(`DEBUG: Initialising Connection:<${_connectionLabel}> - (${this.name} with ${_connectionParam})`);
+    console.debug(
+      `DEBUG: Initialising Connection:<${_connectionLabel}> - (${this.name} with ${_connectionParam})`,
+    );
 
-    let [interfaceToConnect, cbOperation] = _connectionParam.split(this.connectionsDelimiter);
+    let [interfaceToConnect, cbOperation] = _connectionParam.split(
+      this.connectionsDelimiter,
+    );
 
+    var signal = require("../atom.signal/main");
 
-    try{
-      this.connections[_connectionLabel] = await signal.subscribeToInterface(interfaceToConnect);
-    }catch(e){
-      let err = `ERROR: Couldn't Initialise Connection:<${_connectionLabel}> - (${this.name} with ${_connectionParam}) - ${e.message}`;
-      return reject(err);
+    try {
+      this.connections[_connectionLabel] =
+        await signal.subscribeToInterface(interfaceToConnect);
+    } catch (e) {
+      // console.error("Atom.Interface Connection Init Error: ", e);
+      return reject(e);
     }
 
-    if(!this.connections[_connectionLabel].error){
-      this.connections[_connectionLabel].signal.eventEmitter.on(`${this.connections[_connectionLabel].signal.channel}`,async (msg)=>{
-        console.debug("DEBUG: ", `Connection<${_connectionLabel}> Msg Received`);
-        component.emit(`interface.${_connectionLabel}`, msg);
-        try{
-          component[cbOperation](msg); //don't await this call
-        }catch(e){
-          console.error(`Error: component Callback Operation for connection = ${_connectionParam} Failed - `, e);
-        }
-      });
+    if (!this.connections[_connectionLabel].error) {
+      this.connections[_connectionLabel].signal.eventEmitter.on(
+        `${this.connections[_connectionLabel].signal.channel}`,
+        async (msg) => {
+          console.debug(
+            "DEBUG: ",
+            `Connection<${_connectionLabel}> Msg Received`,
+          );
+          component.emit(`interface.${_connectionLabel}`, msg);
+          try {
+            component[cbOperation](msg); //don't await this call
+          } catch (e) {
+            console.error(
+              `Error: component Callback Operation for connection = ${_connectionParam} Failed - `,
+              e,
+            );
+          }
+        },
+      );
 
-      console.debug("DEBUG: ", `Sueccssfully Initialised Connection:<${_connectionLabel}> - (${this.name} with ${_connectionLabel})`);
+      console.debug(
+        "DEBUG: ",
+        `Sueccssfully Initialised Connection:<${_connectionLabel}> - (${this.name} with ${_connectionLabel})`,
+      );
 
       return resolve(this.connections[_connectionLabel]);
     }
   });
-}
+};
 
-
-AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (_agentName) {
+AtomCmpInterface.prototype.filterConnectionsConfigByAgent = function (
+  _agentName,
+) {
   var _filteredConnections = [];
-  if(!this.config.connections){
+  if (!this.config.connections) {
     return _filteredConnections;
   }
-  for(var _key in this.config.connections) { 
-    if(this._getConnTargetInterfaceName(this.config.connections[_key]) == _agentName){
+  for (var _key in this.config.connections) {
+    if (
+      this._getConnTargetInterfaceName(this.config.connections[_key]) ==
+      _agentName
+    ) {
       let _conn = {};
       _conn[_key] = this.config.connections[_key];
       _filteredConnections.push(_conn);
-    };
-  };
-}
+    }
+  }
+};
+
+AtomCmpInterface.prototype._scheduleConnectionRetry = function (
+  connectionKey,
+  connectionParam,
+  targetInterfaceName,
+) {
+  if (!this._connectionRetryAttempts[connectionKey]) {
+    this._connectionRetryAttempts[connectionKey] = 0;
+  }
+
+  this._connectionRetryAttempts[connectionKey]++;
+  const maxRetries = 10; // Maximum retry attempts
+  const baseDelay = 2000; // 2 seconds base delay
+  const maxDelay = 60000; // Maximum 60 seconds delay
+
+  if (this._connectionRetryAttempts[connectionKey] > maxRetries) {
+    console.warn(
+      chalk.yellow(
+        `WARNING: Connection retry limit exceeded for ${connectionKey}. Will only retry on AgentActivated events.`,
+      ),
+    );
+    return;
+  }
+
+  // Exponential backoff: 2^attempt * baseDelay, capped at maxDelay
+  const delay = Math.min(
+    Math.pow(2, this._connectionRetryAttempts[connectionKey]) * baseDelay,
+    maxDelay,
+  );
+
+  console.debug(
+    `DEBUG: Scheduling retry ${this._connectionRetryAttempts[connectionKey]}/${maxRetries} for connection ${connectionKey} in ${delay / 1000}s`,
+  );
+
+  this._connectionRetryTimeouts[connectionKey] = setTimeout(async () => {
+    console.debug(`DEBUG: Retrying connection ${connectionKey}...`);
+
+    try {
+      this._connectionPromises[connectionKey] = true;
+      await this._initConnection(connectionKey, connectionParam);
+
+      // Success - reset retry counter and clear timeout
+      this._connectionRetryAttempts[connectionKey] = 0;
+      delete this._connectionRetryTimeouts[connectionKey];
+
+      console.log(
+        chalk.green(
+          `SUCCESS: Connection ${connectionKey} established after ${this._connectionRetryAttempts[connectionKey]} retries`,
+        ),
+      );
+    } catch (e) {
+      this._connectionPromises[connectionKey] = false;
+      console.debug(
+        `DEBUG: Connection retry ${this._connectionRetryAttempts[connectionKey]} failed for ${connectionKey}: ${e.message}`,
+      );
+
+      // Schedule next retry
+      this._scheduleConnectionRetry(
+        connectionKey,
+        connectionParam,
+        targetInterfaceName,
+      );
+    }
+  }, delay);
+};
 
 // AtomCmpInterface.prototype.initConnectionsWithGivenAgent = function (_agentName) {
 //   console.debug("DEBUG: ", `initialising all Connections with Agent = ${_agentName}`);
 
 // }
 
-AtomCmpInterface.prototype.initConnections = async function (_connectionsToMake=this.config.connections) {
+AtomCmpInterface.prototype.initConnections = async function (
+  _connectionsToMake = this.config.connections,
+) {
+  console.debug(
+    "DEBUG: ",
+    `initialising Connections - ${JSON.stringify(_connectionsToMake)}`,
+  );
+  if (!_connectionsToMake) {
+    return;
+  }
 
-  console.debug("DEBUG: ", `initialising Connections - ${ JSON.stringify(_connectionsToMake) }`);
-  if(!_connectionsToMake){return;}
-
-  for(var key in _connectionsToMake){
-    if(this._connectionPromises[key]){return;}
+  for (var key in _connectionsToMake) {
+    if (this._connectionPromises[key]) {
+      return;
+    }
     this._connectionPromises[key] = true;
-    try{
+    try {
       await this._initConnection(key, _connectionsToMake[key]);
-    }catch(e){
+    } catch (e) {
       this._connectionPromises[key] = false;
       console.error(e);
-      let connTargetInterfaceName = this._getConnTargetInterfaceName(_connectionsToMake[key]);
-      // to further optimise here -
-      // use this callback only once per agentAd.name
-      process.nucleus.on(`AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`, (agentAd)=>{
-        if(agentAd.name != this.name){ //as interface.config.connections would not have itself in that.
-          console.debug(`DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`);
-          // this.initConnection(key, _connectionsToMake[key]);
-          this.initConnections(this.filterConnectionsConfigByAgent(agentAd.name));
-        }
-      });
+      let connTargetInterfaceName = this._getConnTargetInterfaceName(
+        _connectionsToMake[key],
+      );
+
+      // Set up exponential backoff retry for this specific connection
+      this._scheduleConnectionRetry(
+        key,
+        _connectionsToMake[key],
+        connTargetInterfaceName,
+      );
+
+      // Also listen for AgentActivated events for immediate retry
+      process.nucleus.on(
+        `AgentActivated:::Atom.Interface:::${connTargetInterfaceName}`,
+        (agentAd) => {
+          if (agentAd.name != this.name) {
+            //as interface.config.connections would not have itself in that.
+            console.debug(
+              `DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`,
+            );
+            // Clear any pending retry for this connection
+            if (
+              this._connectionRetryTimeouts &&
+              this._connectionRetryTimeouts[key]
+            ) {
+              clearTimeout(this._connectionRetryTimeouts[key]);
+              delete this._connectionRetryTimeouts[key];
+            }
+            // Attempt immediate connection
+            this.initConnections(
+              this.filterConnectionsConfigByAgent(agentAd.name),
+            );
+          }
+        },
+      );
     }
   }
-}
+};
 
-AtomCmpInterface.prototype.publish = async function(_label, msg){
+AtomCmpInterface.prototype.publish = async function (_label, msg) {
   // let label = `${this.name}:::${_label}`;
   let label = _label;
 
-  if(typeof msg != "string"){
+  if (typeof msg != "string") {
     var msg = JSON.stringify(msg);
   }
   this.eventEmitter.emit(label, msg);
   this.eventsSock.send([label, msg]);
 
   console.debug(chalk.yellow(`EVENT: ${label} published ${msg}`));
-}
+};
 
-
-AtomCmpInterface.prototype.listen = async function(interfaceLabel, topic){
-  try{
+AtomCmpInterface.prototype.listen = async function (interfaceLabel, topic) {
+  try {
     let respStatus = await signal.suscrieToInterface(interfaceLabel);
     // console.log("Atom.Interface: Signal Update: ", respStatus);
-  }catch(e){
+  } catch (e) {
     console.log("Atom.Interface signal error - ", e);
   }
-}
+};
 
-AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
+AtomCmpInterface.prototype.reply = async function (sender, lexemeName, msg) {
   // let sender = inflection.get().sender;
   var { message, error, result } = msg;
 
-  console.debug("DEBUG: ", `${this.name}>>>REPLYING TO: `, sender, ", for OP: ", `${lexemeName}` ,", with MSG: ", msg);
+  console.debug(
+    "DEBUG: ",
+    `${this.name}>>>REPLYING TO: `,
+    sender,
+    ", for OP: ",
+    `${lexemeName}`,
+    ", with MSG: ",
+    msg,
+  );
 
   var label = this.config.lexicon[lexemeName].label;
   let response = this.config.lexicon["Response"].inflect({
-    "op": `${this.name}:::${lexemeName}`, 
-    "label": label,
-    "message": message,
-    "error": error,
-    "result": result,
+    op: `${this.name}:::${lexemeName}`,
+    label: label,
+    message: message,
+    error: error,
+    result: result,
   });
 
-  if(label){
+  if (label) {
     this.publish(label, response.get());
   }
 
   console.debug("DEBUG: ", `${this.name}>>>RESPONSE = `, response);
 
-  if(!sender || !sender.split){
-    console.info("INFO: ", `No sender identified (sender = ${JSON.stringify(sender)} )`,"...just logging response - ");
+  if (!sender || !sender.split) {
+    console.info(
+      "INFO: ",
+      `No sender identified (sender = ${JSON.stringify(sender)} )`,
+      "...just logging response - ",
+    );
     console.info("RESPONSE = \n", response);
     return;
   }
-  if(!sender.split(":::")[1]){  // allow custom topics to be specified in sender;
-    sender+=":::Update";  // default to :::Update if no topic given whilst sender specified.
+  if (!sender.split(":::")[1]) {
+    // allow custom topics to be specified in sender;
+    sender += ":::Update"; // default to :::Update if no topic given whilst sender specified.
   }
 
   console.log("Atom.Interface: signal sender specified: ", sender);
@@ -361,31 +549,38 @@ AtomCmpInterface.prototype.reply = async function(sender,lexemeName,msg) {
 
   // response.update({sender: senderInterface});
 
-  try{
-    let respStatus = await signal.publishToInterface(`${senderInterface}`, response.get(), senderParams);
+  try {
+    let respStatus = await signal.publishToInterface(
+      `${senderInterface}`,
+      response.get(),
+      senderParams,
+    );
     // console.log("Atom.Interface: Signal Update: ", respStatus);
-  }catch(e){
+  } catch (e) {
     console.log("Atom.Interface signal error - ", e);
   }
-}
+};
 
-AtomCmpInterface.prototype._bindCmpProcess = async function() {
-  if(component.__start__){
-    try{
+AtomCmpInterface.prototype._bindCmpProcess = async function () {
+  if (component.__start__) {
+    try {
       await component.__start__();
-    }catch(e){
+    } catch (e) {
       console.error("Error: component process failed - ", e);
       process.exit();
     }
   }
-}
+};
 
-AtomCmpInterface.prototype._getConnTargetInterfaceName = function (_connectionConfigStr) {
-  return _connectionConfigStr.split(this.connectionsDelimiter)[0].split("|||")[0];
-}
+AtomCmpInterface.prototype._getConnTargetInterfaceName = function (
+  _connectionConfigStr,
+) {
+  return _connectionConfigStr
+    .split(this.connectionsDelimiter)[0]
+    .split("|||")[0];
+};
 
 AtomCmpInterface.prototype._bindConnections = function (argument) {
-
   var _interfaceConnectionsConfig = this.config.connections;
 
   // for(var key in _interfaceConnectionsConfig){
@@ -396,23 +591,40 @@ AtomCmpInterface.prototype._bindConnections = function (argument) {
   //   console.debug("DEBUG: ", `Atom.Interface${this.name} Connection:<${key}> address = ${connTargetInterfaceName}`);
   // }
 
-  if(process.nucleus.readystate == 4){
-    this.initConnections();
-  }else{
-    process.nucleus.on("ready",()=>{
+  // Wait for nucleus to be ready before initializing connections
+  const initConnectionsWhenReady = () => {
+    if (process.nucleus.readystate == 4) {
       this.initConnections();
-    });
-  }
-}
+    } else {
+      // Set up listener for when nucleus becomes ready
+      const readyHandler = () => {
+        process.nucleus.removeListener("ready", readyHandler);
+        this.initConnections();
+      };
+      process.nucleus.on("ready", readyHandler);
 
-AtomCmpInterface.prototype.processInterfaceUri = function(_message) {
+      // Also periodically check if nucleus is ready (in case we miss the event)
+      const checkReady = setInterval(() => {
+        if (process.nucleus.readystate == 4) {
+          clearInterval(checkReady);
+          process.nucleus.removeListener("ready", readyHandler);
+          this.initConnections();
+        }
+      }, 5000); // Check every 5 seconds
+    }
+  };
+
+  initConnectionsWhenReady();
+};
+
+AtomCmpInterface.prototype.processInterfaceUri = function (_message) {
   return _message.split("#$#");
-}
+};
 
-AtomCmpInterface.prototype.activate = async function() {
-  try{
+AtomCmpInterface.prototype.activate = async function () {
+  try {
     await this._bindCmpProcess();
-  }catch(e){
+  } catch (e) {
     console.error("Error: component activation failed - ", e);
     process.exit();
   }
@@ -422,83 +634,96 @@ AtomCmpInterface.prototype.activate = async function() {
   this._bindConnections();
 
   this.sock.on("message", async (_lexemeName, _message) => {
-    console.log(`${this.prefix}${_instance.name}@${this.address} - `,
+    console.log(
+      `${this.prefix}${_instance.name}@${this.address} - `,
       "received a message related to:",
       _lexemeName.toString(),
       "containing message:",
-      _message.toString()
+      _message.toString(),
     );
 
-
-    try{
-      var [message, _paramsString] = _message.toString().split("---<end-of-message>---");
-    }catch(e){
+    try {
+      var [message, _paramsString] = _message
+        .toString()
+        .split("---<end-of-message>---");
+    } catch (e) {
       console.error(`Couldn't process incoming msg - `, e);
       return;
     }
 
     // var message = processedMsg.shift();
 
-    var _paramsList = _paramsString ? this.processInterfaceUri(_paramsString) : [];
+    var _paramsList = _paramsString
+      ? this.processInterfaceUri(_paramsString)
+      : [];
 
     // console.debug("_paramsList ------------ ", _paramsList);
 
     // var message = _paramsList.shift();
-    
 
     // console.log("component = ", component[_lexemeName]);
-    try{
+    try {
       // component[_lexemeName](this.processMsg(message));
 
-      if(!component[_lexemeName]){
+      if (!component[_lexemeName]) {
         console.log(`Error: Invalid Msg - no such component function`); //in case of calling 'Response' topic.
         return;
       }
 
-      if(!this.config.lexicon[_lexemeName]){
+      if (!this.config.lexicon[_lexemeName]) {
         console.log(`Error: Invalid Msg - no such lexeme = `, _lexemeName); //in case of calling 'Response' topic.
         return;
       }
 
-      var inflection = this.config.lexicon[_lexemeName].inflect(message.toString(), _paramsList); //passed both at inflection & component function call below - can be utilized at iether place
-      if(!inflection){
+      var inflection = this.config.lexicon[_lexemeName].inflect(
+        message.toString(),
+        _paramsList,
+      ); //passed both at inflection & component function call below - can be utilized at iether place
+      if (!inflection) {
         console.log(`Error: Inflected form is invalid`);
         return;
       }
 
-      console.log(`${this.prefix}${this.name} Inflected Lexeme: `, inflection.get());
+      console.log(
+        `${this.prefix}${this.name} Inflected Lexeme: `,
+        inflection.get(),
+      );
 
       var result, error, message;
-      try{
+      try {
         result = await component[_lexemeName](inflection.get(), _paramsList); //assumed all component interface functions are async
         // console.log("INFO: result = ", result);
-        if(result){
+        if (result) {
           message = result.message;
           delete result.message;
-          if(result.error){ // tbcleaned further
+          if (result.error) {
+            // tbcleaned further
             error = JSON.stringify(result.error);
             result = null;
           }
-        }else{
+        } else {
           message = "no result received";
         }
-      }catch(err){
+      } catch (err) {
         // console.error("Operation Errored with  this - ", err);
         error = err.message;
         message = `Operation Failed`;
       }
       // if(inflection.get().sender && inflection.get().sender.port){
-      
+
       // console.debug(">>>>>>>>>>>>>>Operation Sender = ", inflection.get().sender);
 
-      if(inflection.get().sender){
+      if (inflection.get().sender) {
+        console.debug(
+          "DEBUG: ",
+          `${this.name}>>>Message Sender = `,
+          inflection.get().sender,
+        );
 
-        console.debug("DEBUG: ", `${this.name}>>>Message Sender = `, inflection.get().sender)
-        
         this.reply(inflection.get().sender, _lexemeName, {
           message: message,
           error: error,
-          result: result
+          result: result,
         });
         // p.then((respStatus) => {
         //   console.log("Atom.Interface: Signal Update: ", respStatus);
@@ -508,38 +733,44 @@ AtomCmpInterface.prototype.activate = async function() {
         // var _signal = new signal(inflection.get().sender);
         // _signal.sendWavelet("Update",response.get());
       }
-    }catch(e){
+    } catch (e) {
       console.log(`Error: ${e.message}`);
       return;
     }
   });
 
-  process.on('SIGINT', this.handleInterrupts);
-  process.on('SIGTERM', this.handleInterrupts);
+  process.on("SIGINT", this.handleInterrupts);
+  process.on("SIGTERM", this.handleInterrupts);
   console.log("Info: ", `${this.prefix}${this.name} activated`);
 
   // process.send("interface-activated");
-}
+};
 
-AtomCmpInterface.prototype.handleInterrupts = function(signalEv) {
-  console.log(`Info: ${_instance.prefix}${_instance.name}@${_instance.address} - Received ${signalEv}`);
-  if(signalEv=="SIGINT" && !_instance.ended){ //without _instance.eneded multiple (3) SIGINTs are received.
-    console.log(`Info: Terminating ${_instance.prefix}${_instance.name}@${_instance.address}`);
+AtomCmpInterface.prototype.handleInterrupts = function (signalEv) {
+  console.log(
+    `Info: ${_instance.prefix}${_instance.name}@${_instance.address} - Received ${signalEv}`,
+  );
+  if (signalEv == "SIGINT" && !_instance.ended) {
+    //without _instance.eneded multiple (3) SIGINTs are received.
+    console.log(
+      `Info: Terminating ${_instance.prefix}${_instance.name}@${_instance.address}`,
+    );
     _instance.renounce();
-    setTimeout(()=>{
-      console.info("Info:", `Terminated ${_instance.prefix}:::${_instance.name}@${_instance.address}`);
+    setTimeout(() => {
+      console.info(
+        "Info:",
+        `Terminated ${_instance.prefix}:::${_instance.name}@${_instance.address}`,
+      );
       process.exit();
-    },1000);
-    
+    }, 1000);
+
     // kill(this.config.port).then(() => {
     //   console.info("Info:", "closed port:", this.config.port);
     // });
   }
-}
+};
 
-
-AtomCmpInterface.prototype.advertise = function() {
-
+AtomCmpInterface.prototype.advertise = function () {
   this.ad = this.config.lexicon["Advertisement"].inflect({
     name: this.name,
     label: `${this.prefix}${this.name}`,
@@ -547,53 +778,67 @@ AtomCmpInterface.prototype.advertise = function() {
     host: `${this.config.host}`, // when omitted, this.config.host defaults to the local IP (see this.defaultConfig)
     port: `${this.config.port}`,
     eventsPort: `${this.config.eventsPort}`,
-    lexicon: this.getSerialisedLexicon() // any additional information is allowed and will be propagated
+    lexicon: this.getSerialisedLexicon(), // any additional information is allowed and will be propagated
   });
 
   process.nucleus.announceInterface(this.ad.get());
 
   // console.debug("DEBUG: process.nucleus = ", process.nucleus);
-  console.log(chalk.yellow("Info: ", "Atom.Interface advertised - ", this.ad.stringify()));
-}
+  console.log(
+    chalk.yellow("Info: ", "Atom.Interface advertised - ", this.ad.stringify()),
+  );
+};
 
-
-AtomCmpInterface.prototype.advertiseAndActivate = function() { //activate & then advertise (tb renamed accordingly later)
+AtomCmpInterface.prototype.advertiseAndActivate = function () {
+  //activate & then advertise (tb renamed accordingly later)
   process.title = `${this.prefix}${this.name}`;
 
-  if(process.nucleus.readystate == 4){
+  if (process.nucleus.readystate == 4) {
     this.activate();
     this.advertise();
-  }else{
-    process.nucleus.on("ready", ()=> {
+  } else {
+    process.nucleus.on("ready", () => {
       this.activate();
       this.advertise();
     });
   }
-}
+};
 
-
-AtomCmpInterface.prototype.renounce = function() {
+AtomCmpInterface.prototype.renounce = function () {
   process.nucleus.renounceInterface(this.ad.get());
-  try{
+  try {
     _instance.sock.close();
-  }catch(e){
+  } catch (e) {
     console.error(e);
-  } 
+  }
 
-  try{ //deestroy all the interface connection signals
-    for(var k in this.connections){
+  try {
+    //destroy all the interface connection signals
+    for (var k in this.connections) {
       var _connection = this.connections[k];
-      if(!(_connection instanceof Error)){
-        if(_connection.signal){
+      if (!(_connection instanceof Error)) {
+        if (_connection.signal) {
           _connection.signal.destroy();
         }
       }
     }
-  }catch(e){
+  } catch (e) {
     console.error(e);
   }
+
+  try {
+    // Clear any pending connection retry timeouts
+    for (var key in this._connectionRetryTimeouts) {
+      clearTimeout(this._connectionRetryTimeouts[key]);
+    }
+    this._connectionRetryTimeouts = {};
+    this._connectionRetryAttempts = {};
+  } catch (e) {
+    console.error(e);
+  }
+
   this.ended = true;
-}
+};
 
 // var component = require("./src/main.js");
 
@@ -608,6 +853,5 @@ AtomCmpInterface.prototype.renounce = function() {
 
 //   }
 // }
-
 
 module.exports = AtomCmpInterface;
