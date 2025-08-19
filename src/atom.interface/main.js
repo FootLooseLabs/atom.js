@@ -277,7 +277,7 @@ AtomCmpInterface.prototype._initConnection = async function (
     if (existingConnection && existingConnection.statusCode == 2) {
       let msg = `Atom.Interface:::${this.name} Not Initialisng Connection as found Existing active Connection:<${_connectionLabel}>`;
       console.debug("DEBUG: ", `${msg} = `, existingConnection);
-      return reject(msg);
+      return resolve(existingConnection);
     }
 
     console.debug(
@@ -352,6 +352,18 @@ AtomCmpInterface.prototype._scheduleConnectionRetry = function (
   connectionParam,
   targetInterfaceName,
 ) {
+  // Check if connection already exists and is active
+  const existingConnection = this.connections[connectionKey];
+  if (existingConnection && existingConnection.statusCode === 2) {
+    console.debug(
+      `DEBUG: Skipping retry for ${connectionKey} - connection already active`,
+    );
+    // Clear retry state since connection is active
+    this._connectionRetryAttempts[connectionKey] = 0;
+    delete this._connectionRetryTimeouts[connectionKey];
+    return;
+  }
+
   if (!this._connectionRetryAttempts[connectionKey]) {
     this._connectionRetryAttempts[connectionKey] = 0;
   }
@@ -381,6 +393,17 @@ AtomCmpInterface.prototype._scheduleConnectionRetry = function (
   );
 
   this._connectionRetryTimeouts[connectionKey] = setTimeout(async () => {
+    // Double-check connection status before retrying
+    const currentConnection = this.connections[connectionKey];
+    if (currentConnection && currentConnection.statusCode === 2) {
+      console.debug(
+        `DEBUG: Connection ${connectionKey} became active during retry delay - cancelling retry`,
+      );
+      this._connectionRetryAttempts[connectionKey] = 0;
+      delete this._connectionRetryTimeouts[connectionKey];
+      return;
+    }
+
     console.debug(`DEBUG: Retrying connection ${connectionKey}...`);
 
     try {
@@ -388,26 +411,44 @@ AtomCmpInterface.prototype._scheduleConnectionRetry = function (
       await this._initConnection(connectionKey, connectionParam);
 
       // Success - reset retry counter and clear timeout
+      const retryCount = this._connectionRetryAttempts[connectionKey];
       this._connectionRetryAttempts[connectionKey] = 0;
       delete this._connectionRetryTimeouts[connectionKey];
 
       console.log(
         chalk.green(
-          `SUCCESS: Connection ${connectionKey} established after ${this._connectionRetryAttempts[connectionKey]} retries`,
+          `SUCCESS: Connection ${connectionKey} established after ${retryCount} retries`,
         ),
       );
     } catch (e) {
       this._connectionPromises[connectionKey] = false;
+
+      // Better error logging
+      const errorMsg =
+        e && e.message
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Unknown error";
       console.debug(
-        `DEBUG: Connection retry ${this._connectionRetryAttempts[connectionKey]} failed for ${connectionKey}: ${e.message}`,
+        `DEBUG: Connection retry ${this._connectionRetryAttempts[connectionKey]} failed for ${connectionKey}: ${errorMsg}`,
       );
 
-      // Schedule next retry
-      this._scheduleConnectionRetry(
-        connectionKey,
-        connectionParam,
-        targetInterfaceName,
-      );
+      // Schedule next retry only if connection is still not active
+      const finalConnection = this.connections[connectionKey];
+      if (!finalConnection || finalConnection.statusCode !== 2) {
+        this._scheduleConnectionRetry(
+          connectionKey,
+          connectionParam,
+          targetInterfaceName,
+        );
+      } else {
+        console.debug(
+          `DEBUG: Connection ${connectionKey} became active - stopping retries`,
+        );
+        this._connectionRetryAttempts[connectionKey] = 0;
+        delete this._connectionRetryTimeouts[connectionKey];
+      }
     }
   }, delay);
 };
@@ -437,7 +478,24 @@ AtomCmpInterface.prototype.initConnections = async function (
       await this._initConnection(key, _connectionsToMake[key]);
     } catch (e) {
       this._connectionPromises[key] = false;
-      console.error(e);
+
+      // Better error logging and handling
+      const errorMsg =
+        e && e.message
+          ? e.message
+          : typeof e === "string"
+            ? e
+            : "Unknown error";
+      console.debug(`DEBUG: Initial connection failed for ${key}: ${errorMsg}`);
+
+      // Only schedule retry if this was a real failure, not an "already exists" case
+      if (errorMsg.includes("found Existing active Connection")) {
+        console.debug(
+          `DEBUG: Skipping retry for ${key} - connection already active`,
+        );
+        return;
+      }
+
       let connTargetInterfaceName = this._getConnTargetInterfaceName(
         _connectionsToMake[key],
       );
@@ -456,7 +514,7 @@ AtomCmpInterface.prototype.initConnections = async function (
           if (agentAd.name != this.name) {
             //as interface.config.connections would not have itself in that.
             console.debug(
-              `DBEUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`,
+              `DEBUG: Atom.Interface${this.name}:::--Heard Connection--:::AgentActivated: <${agentAd.name}>`,
             );
             // Clear any pending retry for this connection
             if (
@@ -465,6 +523,10 @@ AtomCmpInterface.prototype.initConnections = async function (
             ) {
               clearTimeout(this._connectionRetryTimeouts[key]);
               delete this._connectionRetryTimeouts[key];
+              this._connectionRetryAttempts[key] = 0;
+              console.debug(
+                `DEBUG: Cleared retry state for ${key} due to AgentActivated event`,
+              );
             }
             // Attempt immediate connection
             this.initConnections(
