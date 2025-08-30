@@ -245,7 +245,9 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, paramList) => {
 					error: false,
 					message: `${signal.getLabel()} published wavelet`,
 					statusCode: 2,
-				});		
+				});
+				console.log(chalk.red(`About to destroy socket for ${signal.getLabel()}`))
+				signal.destroy();
 				resolve(status.get());
 				return;
 			}catch(e){
@@ -256,7 +258,8 @@ AtomSignal.publishToInterface = async (interfaceLabel, message, paramList) => {
 				});
 				status.error = e;
 				status.statusCode = -1;
-
+				console.log(chalk.red(`About to destroy socket for ${signal.getLabel()}`))
+				signal.destroy();
 				reject(status);
 				return;
 			}
