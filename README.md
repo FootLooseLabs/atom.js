@@ -167,8 +167,8 @@ try {
 
 // Request with custom timeout
 const result = await _interface.request(
-  "@myapp/order-service", 
-  "process-order", 
+  "@myapp/order-service",
+  "process-order",
   { orderId: "456" },
   { timeout: 5000 }
 );
@@ -176,7 +176,7 @@ const result = await _interface.request(
 // Using static API
 const response = await Atom.Request.send(
   "@myapp/user-service",
-  "validate-user", 
+  "validate-user",
   { email: "user@example.com" }
 );
 ```
@@ -196,7 +196,7 @@ const serviceConfig = {
         const user = await getUserById(userId);
         return user;
       },
-      
+
       "create-user": async (data, context) => {
         const newUser = await createUser(data);
         return { success: true, user: newUser };
@@ -237,7 +237,7 @@ Atom.Signal.subscribeToInterface(
   "@myapp/payment-service|||payment-completed"
 ).then(status => {
   const signal = status.signal;
-  
+
   signal.eventEmitter.on("payment-completed", (data) => {
     console.log("Payment completed:", data);
     // Handle payment completion
@@ -534,7 +534,7 @@ This framework is part of our internal microservices architecture. For questions
 ### Known Limitations
 - Redis is a single point of failure for service discovery
 - ZeroMQ connections are not encrypted by default
-- No built-in authentication/authorization mechanism
+- No built-in authentication/authorization mechanism. You should implement it at service level or create a gateway service.
 - Limited support for message ordering guarantees across multiple services
 
 For additional questions or to report issues, please contact the development team.
