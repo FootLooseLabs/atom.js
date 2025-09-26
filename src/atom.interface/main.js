@@ -110,6 +110,9 @@ AtomCmpInterface.prototype.__init__ = function () {
 
   console.log("Info: ", "Initalising - ", `${this.name}@${this.address}`);
   this._initialiseSocket();
+
+  // Initialize request handling capabilities
+  this._initRequestHandling();
 };
 
 AtomCmpInterface.prototype.__initComponentProps__ = function () {
@@ -858,11 +861,60 @@ AtomCmpInterface.prototype.advertiseAndActivate = function () {
   if (process.nucleus.readystate == 4) {
     this.activate();
     this.advertise();
+    this._setupRequestIntegration();
   } else {
     process.nucleus.on("ready", () => {
       this.activate();
       this.advertise();
+      this._setupRequestIntegration();
     });
+  }
+};
+
+AtomCmpInterface.prototype._initRequestHandling = function () {
+  // Add request handling methods to this interface instance
+  const AtomRequest = require("../atom.request/main");
+
+  this.request = (targetService, operation, data, options) => {
+    return AtomRequest.send(targetService, operation, data, options);
+  };
+
+  this.handleRequest = (operation, handler) => {
+    return AtomRequest.handle(operation, handler);
+  };
+
+  this.removeRequestHandler = (operation) => {
+    return AtomRequest.unhandle(operation);
+  };
+
+  this.getRequestStats = () => {
+    return AtomRequest.getStats();
+  };
+};
+
+AtomCmpInterface.prototype._setupRequestIntegration = function () {
+  try {
+    const AtomRequest = require("../atom.request/main");
+
+    // Setup request handling on this interface
+    AtomRequest.setupInterface(this);
+
+    // Auto-register request handlers from config
+    if (this.config.requestHandlers) {
+      for (const [operation, handler] of Object.entries(
+        this.config.requestHandlers,
+      )) {
+        if (typeof handler === "function") {
+          AtomRequest.handle(operation, handler);
+        }
+      }
+    }
+
+    console.debug(`Info: Request handling enabled for ${this.name}`);
+  } catch (error) {
+    console.error(
+      `Warning: Failed to setup request handling for ${this.name} - ${error.message}`,
+    );
   }
 };
 

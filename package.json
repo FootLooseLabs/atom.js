@@ -1,26 +1,27 @@
 {
-	"name": "atom",
-	"version": "0.0.4",
-	"main": "src/index.js",
-	"bin": {
-		"atom": "./bin/main.js"
-	},
-	"config": {},
-	"scripts": {
-		"postinstall": ""
-	},
-	"dependencies": {
-		"chalk": "^4.1.0",
-		"diont": "git+https://github.com/apratimankur/Diont",
-		"eventemitter2": "^6.4.3",
-		"ini": "^1.3.5",
-		"kill-port": "^1.6.0",
-		"nodemon": "^2.0.4",
-		"redis": "^3.0.2",
-		"zeromq": "^5.2.0"
-	},
-	"devDependencies": {
-		"babel-cli": "^6.26.0",
-		"babel-preset-es2015": "^6.24.1"
-	}
+  "name": "atom",
+  "version": "0.0.4",
+  "main": "src/index.js",
+  "bin": {
+    "atom": "./bin/main.js"
+  },
+  "config": {},
+  "scripts": {
+    "postinstall": ""
+  },
+  "dependencies": {
+    "chalk": "^4.1.0",
+    "diont": "git+https://github.com/apratimankur/Diont",
+    "eventemitter2": "^6.4.3",
+    "ini": "^1.3.5",
+    "kill-port": "^1.6.0",
+    "nodemon": "^2.0.4",
+    "redis": "^3.0.2",
+    "uuid": "^8.3.2",
+    "zeromq": "^5.2.0"
+  },
+  "devDependencies": {
+    "babel-cli": "^6.26.0",
+    "babel-preset-es2015": "^6.24.1"
+  }
 }
