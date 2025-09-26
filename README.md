@@ -537,4 +537,4 @@ This framework is part of our internal microservices architecture. For questions
 - No built-in authentication/authorization mechanism. You should implement it at service level or create a gateway service.
 - Limited support for message ordering guarantees across multiple services
 
-For additional questions or to report issues, please contact the development team.
+For additional questions or to report issues, feel free to reach out.
