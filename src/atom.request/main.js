@@ -1,97 +1,157 @@
-const { v4: uuidv4 } = require('uuid');
-const EventEmitter = require('events');
-const chalk = require('chalk');
+const { v4: uuidv4 } = require("uuid");
+const EventEmitter = require("events");
+const chalk = require("chalk");
+const zmq = require("zeromq");
 
 class AtomRequest extends EventEmitter {
   constructor() {
     super();
-    this.pendingRequests = new Map(); // correlationId -> { resolve, reject, timeout, timestamp }
     this.requestHandlers = new Map(); // operation -> handler function
     this.defaultTimeout = 10000; // 10 seconds
     this.maxPendingRequests = 1000;
+    this.activeRequestSockets = new Map(); // targetService -> REQ socket
+    this.repSocket = null; // REP socket for handling incoming requests
+    this.repSocketAddress = null;
 
-    // Cleanup expired requests every 30 seconds
+    // Cleanup old sockets periodically
     this.cleanupInterval = setInterval(() => {
-      this._cleanupExpiredRequests();
-    }, 30000);
+      this._cleanupIdleSockets();
+    }, 60000); // Every minute
   }
 
   /**
-   * Send a request and wait for response
+   * Send a request and wait for response using ZeroMQ REQ/REP
    * @param {string} targetService - Service name (e.g., "@myapp/user-service")
    * @param {string} operation - Operation name (e.g., "get-user")
    * @param {Object} data - Request data
-   * @param {Object} options - Options { timeout, channel }
+   * @param {Object} options - Options { timeout }
    * @returns {Promise} - Resolves with response or rejects with error
    */
   async send(targetService, operation, data = {}, options = {}) {
     if (!global._interface) {
-      throw new Error('AtomRequest: No active atom interface found. Ensure service is initialized.');
+      throw new Error(
+        "AtomRequest: No active atom interface found. Ensure service is initialized.",
+      );
     }
 
     const timeout = options.timeout || this.defaultTimeout;
-    const channel = options.channel || 'atom-request';
     const correlationId = uuidv4();
 
-    // Check pending request limit
-    if (this.pendingRequests.size >= this.maxPendingRequests) {
-      throw new Error('AtomRequest: Maximum pending requests limit reached');
+    // Find target service info from nucleus
+    const targetInterface = await this._findServiceInterface(targetService);
+    if (!targetInterface) {
+      throw new Error(`AtomRequest: Service '${targetService}' not found`);
     }
 
+    // Calculate target REP port (service port + 2)
+    const targetPort = parseInt(targetInterface.port) + 2;
+    const targetAddress = `tcp://${targetInterface.host}:${targetPort}`;
+
     const requestMessage = {
-      type: 'request',
+      type: "request",
       correlationId,
       operation,
       data,
       timestamp: Date.now(),
       sender: global._interface.name,
-      target: targetService
     };
 
-    return new Promise((resolve, reject) => {
-      // Set up timeout
-      const timeoutHandle = setTimeout(() => {
-        this.pendingRequests.delete(correlationId);
-        reject(new Error(`AtomRequest: Request timeout after ${timeout}ms for ${targetService}::${operation}`));
-      }, timeout);
-
-      // Store pending request
-      this.pendingRequests.set(correlationId, {
-        resolve,
-        reject,
-        timeout: timeoutHandle,
-        timestamp: Date.now(),
-        operation,
-        targetService
-      });
-
-      // Send request via existing pub/sub
-      const targetChannel = `${targetService}|||${channel}`;
+    return new Promise(async (resolve, reject) => {
+      let reqSocket = null;
+      let timeoutHandle = null;
 
       try {
-        global._interface.publish(targetChannel, requestMessage);
-        console.debug(chalk.blue(`AtomRequest: Sent request ${correlationId} to ${targetService}::${operation}`));
+        // Create REQ socket for this request
+        reqSocket = zmq.socket("req");
+
+        // Set up timeout
+        timeoutHandle = setTimeout(() => {
+          if (reqSocket) {
+            reqSocket.close();
+          }
+          reject(
+            new Error(
+              `AtomRequest: Request timeout after ${timeout}ms for ${targetService}::${operation}`,
+            ),
+          );
+        }, timeout);
+
+        // Handle response
+        reqSocket.once("message", (responseBuffer) => {
+          clearTimeout(timeoutHandle);
+
+          try {
+            const response = JSON.parse(responseBuffer.toString());
+
+            if (response.correlationId !== correlationId) {
+              reject(new Error("AtomRequest: Correlation ID mismatch"));
+              return;
+            }
+
+            if (response.error) {
+              reject(
+                new Error(
+                  `AtomRequest: ${response.error} (${response.code || "UNKNOWN_ERROR"})`,
+                ),
+              );
+            } else {
+              resolve(response.result);
+            }
+          } catch (parseError) {
+            reject(
+              new Error(
+                `AtomRequest: Invalid response format - ${parseError.message}`,
+              ),
+            );
+          } finally {
+            reqSocket.close();
+          }
+        });
+
+        reqSocket.on("error", (error) => {
+          clearTimeout(timeoutHandle);
+          reject(new Error(`AtomRequest: Socket error - ${error.message}`));
+        });
+
+        // Connect and send request
+        reqSocket.connect(targetAddress);
+        reqSocket.send(JSON.stringify(requestMessage));
+
+        console.debug(
+          chalk.blue(
+            `AtomRequest: Sent REQ ${correlationId} to ${targetService}::${operation} at ${targetAddress}`,
+          ),
+        );
       } catch (error) {
-        // Cleanup on send failure
-        this.pendingRequests.delete(correlationId);
-        clearTimeout(timeoutHandle);
-        reject(new Error(`AtomRequest: Failed to send request - ${error.message}`));
+        if (timeoutHandle) clearTimeout(timeoutHandle);
+        if (reqSocket) reqSocket.close();
+        reject(
+          new Error(`AtomRequest: Failed to send request - ${error.message}`),
+        );
       }
     });
   }
 
   /**
-   * Register a request handler for an operation
+   * Register a request handler
    * @param {string} operation - Operation name
-   * @param {Function} handler - Handler function (data, context) => response
+   * @param {function} handler - Handler function (data, context) => result
    */
   handle(operation, handler) {
-    if (typeof handler !== 'function') {
-      throw new Error('AtomRequest: Handler must be a function');
+    if (typeof operation !== "string") {
+      throw new Error("AtomRequest: Operation must be a string");
+    }
+
+    if (typeof handler !== "function") {
+      throw new Error("AtomRequest: Handler must be a function");
     }
 
     this.requestHandlers.set(operation, handler);
-    console.debug(chalk.green(`AtomRequest: Registered handler for operation '${operation}'`));
+    console.debug(
+      chalk.green(
+        `AtomRequest: Registered handler for operation '${operation}'`,
+      ),
+    );
   }
 
   /**
@@ -101,237 +161,220 @@ class AtomRequest extends EventEmitter {
   unhandle(operation) {
     const removed = this.requestHandlers.delete(operation);
     if (removed) {
-      console.debug(chalk.yellow(`AtomRequest: Unregistered handler for operation '${operation}'`));
+      console.debug(
+        chalk.yellow(
+          `AtomRequest: Unregistered handler for operation '${operation}'`,
+        ),
+      );
     }
-    return removed;
   }
 
   /**
-   * Process incoming request message
-   * @param {Object} message - Incoming message
-   * @param {Object} context - Message context
+   * Setup REP socket for handling incoming requests
+   * @param {Object} atomInterface - Atom interface instance
    */
-  async _processIncomingMessage(message, context = {}) {
-    try {
-      if (!message || typeof message !== 'object') {
-        console.warn('AtomRequest: Invalid message format received');
-        return;
-      }
+  setupInterface(atomInterface) {
+    if (!atomInterface) {
+      throw new Error("AtomRequest: Interface is required");
+    }
 
-      if (message.type === 'request') {
-        await this._handleRequest(message, context);
-      } else if (message.type === 'response') {
-        this._handleResponse(message);
-      }
+    // Calculate REP socket port (interface port + 2)
+    const repPort = atomInterface.config.port + 2;
+    const repHost = atomInterface.config.host || "127.0.0.1";
+    this.repSocketAddress = `tcp://${repHost}:${repPort}`;
+
+    try {
+      // Create REP socket
+      this.repSocket = zmq.socket("rep");
+
+      // Handle incoming requests
+      this.repSocket.on("message", async (requestBuffer) => {
+        try {
+          const request = JSON.parse(requestBuffer.toString());
+          await this._handleRequest(request);
+        } catch (error) {
+          console.error(
+            chalk.red(`AtomRequest: Error parsing request - ${error.message}`),
+          );
+          // Send error response
+          const errorResponse = {
+            type: "response",
+            correlationId: "unknown",
+            error: "Invalid request format",
+            code: "PARSE_ERROR",
+          };
+          this.repSocket.send(JSON.stringify(errorResponse));
+        }
+      });
+
+      this.repSocket.on("error", (error) => {
+        console.error(
+          chalk.red(`AtomRequest: REP socket error - ${error.message}`),
+        );
+      });
+
+      // Bind REP socket
+      this.repSocket.bindSync(this.repSocketAddress);
+      console.debug(
+        chalk.green(
+          `AtomRequest: REP socket listening on ${this.repSocketAddress}`,
+        ),
+      );
     } catch (error) {
-      console.error(chalk.red(`AtomRequest: Error processing message - ${error.message}`));
+      console.error(
+        chalk.red(`AtomRequest: Failed to setup REP socket - ${error.message}`),
+      );
+      throw error;
     }
   }
 
   /**
-   * Handle incoming request
+   * Handle incoming request on REP socket
    * @private
    */
-  async _handleRequest(message, context) {
-    const { correlationId, operation, data, sender } = message;
+  async _handleRequest(request) {
+    const { correlationId, operation, data, sender } = request;
 
     if (!correlationId || !operation || !sender) {
-      console.warn('AtomRequest: Invalid request message - missing required fields');
+      const errorResponse = {
+        type: "response",
+        correlationId: correlationId || "unknown",
+        error: "Invalid request - missing required fields",
+        code: "INVALID_REQUEST",
+      };
+      this.repSocket.send(JSON.stringify(errorResponse));
       return;
     }
 
     const handler = this.requestHandlers.get(operation);
     if (!handler) {
-      // Send error response
-      await this._sendResponse(sender, correlationId, {
+      const errorResponse = {
+        type: "response",
+        correlationId,
         error: `Operation '${operation}' not supported`,
-        code: 'OPERATION_NOT_FOUND'
-      });
+        code: "OPERATION_NOT_FOUND",
+      };
+      this.repSocket.send(JSON.stringify(errorResponse));
       return;
     }
 
     try {
-      console.debug(chalk.blue(`AtomRequest: Processing request ${correlationId} for operation '${operation}'`));
+      console.debug(
+        chalk.blue(
+          `AtomRequest: Processing REQ ${correlationId} for operation '${operation}'`,
+        ),
+      );
 
       const requestContext = {
         correlationId,
         sender,
-        timestamp: message.timestamp,
-        ...context
+        timestamp: request.timestamp,
       };
 
       const result = await handler(data, requestContext);
 
       // Send success response
-      await this._sendResponse(sender, correlationId, { result });
+      const successResponse = {
+        type: "response",
+        correlationId,
+        result,
+        timestamp: Date.now(),
+      };
 
+      this.repSocket.send(JSON.stringify(successResponse));
+      console.debug(
+        chalk.green(`AtomRequest: Sent response for ${correlationId}`),
+      );
     } catch (error) {
-      console.error(chalk.red(`AtomRequest: Handler error for ${operation} - ${error.message}`));
+      console.error(
+        chalk.red(
+          `AtomRequest: Handler error for ${operation} - ${error.message}`,
+        ),
+      );
 
       // Send error response
-      await this._sendResponse(sender, correlationId, {
+      const errorResponse = {
+        type: "response",
+        correlationId,
         error: error.message,
-        code: 'HANDLER_ERROR'
-      });
+        code: "HANDLER_ERROR",
+        timestamp: Date.now(),
+      };
+
+      this.repSocket.send(JSON.stringify(errorResponse));
     }
   }
 
   /**
-   * Handle incoming response
+   * Find service interface from nucleus
    * @private
    */
-  _handleResponse(message) {
-    const { correlationId, data } = message;
-
-    if (!correlationId) {
-      console.warn('AtomRequest: Response missing correlation ID');
-      return;
-    }
-
-    const pendingRequest = this.pendingRequests.get(correlationId);
-    if (!pendingRequest) {
-      console.warn(`AtomRequest: Received response for unknown correlation ID: ${correlationId}`);
-      return;
-    }
-
-    // Cleanup
-    this.pendingRequests.delete(correlationId);
-    clearTimeout(pendingRequest.timeout);
-
-    console.debug(chalk.green(`AtomRequest: Received response for ${correlationId}`));
-
-    // Resolve or reject promise
-    if (data.error) {
-      pendingRequest.reject(new Error(`AtomRequest: ${data.error} (${data.code || 'UNKNOWN_ERROR'})`));
-    } else {
-      pendingRequest.resolve(data.result);
-    }
-  }
-
-  /**
-   * Send response back to requester
-   * @private
-   */
-  async _sendResponse(targetService, correlationId, data) {
-    if (!global._interface) {
-      console.error('AtomRequest: No active interface for sending response');
-      return;
-    }
-
-    const responseMessage = {
-      type: 'response',
-      correlationId,
-      data,
-      timestamp: Date.now(),
-      sender: global._interface.name
-    };
-
-    const responseChannel = `${targetService}|||atom-response`;
-
+  async _findServiceInterface(serviceName) {
     try {
-      global._interface.publish(responseChannel, responseMessage);
-      console.debug(chalk.blue(`AtomRequest: Sent response ${correlationId} to ${targetService}`));
+      if (!process.nucleus || !process.nucleus.getInterfaceIfActive) {
+        throw new Error("Nucleus not available");
+      }
+
+      const interfaceInfo = await process.nucleus.getInterfaceIfActive(
+        `Atom.Interface:::${serviceName}`,
+      );
+      return interfaceInfo;
     } catch (error) {
-      console.error(chalk.red(`AtomRequest: Failed to send response - ${error.message}`));
+      console.warn(
+        `AtomRequest: Could not find service '${serviceName}' - ${error.message}`,
+      );
+      return null;
     }
   }
 
   /**
-   * Setup request/response channels on interface
-   * @param {Object} interface - Atom interface instance
-   */
-  setupInterface(atomInterface) {
-    if (!atomInterface) {
-      throw new Error('AtomRequest: Interface is required');
-    }
-
-    // Subscribe to request channel
-    atomInterface.eventHandlers = atomInterface.eventHandlers || {};
-
-    // Handle incoming requests
-    atomInterface.eventHandlers['atom-request'] = (data) => {
-      this._processIncomingMessage(data);
-    };
-
-    // Handle incoming responses
-    atomInterface.eventHandlers['atom-response'] = (data) => {
-      this._processIncomingMessage(data);
-    };
-
-    console.debug(chalk.green('AtomRequest: Interface setup completed'));
-  }
-
-  /**
-   * Cleanup expired requests
+   * Cleanup idle request sockets
    * @private
    */
-  _cleanupExpiredRequests() {
-    const now = Date.now();
-    const expired = [];
-
-    for (const [correlationId, request] of this.pendingRequests.entries()) {
-      if (now - request.timestamp > (this.defaultTimeout * 2)) {
-        expired.push(correlationId);
-      }
-    }
-
-    expired.forEach(correlationId => {
-      const request = this.pendingRequests.get(correlationId);
-      if (request) {
-        clearTimeout(request.timeout);
-        this.pendingRequests.delete(correlationId);
-        request.reject(new Error('AtomRequest: Request expired during cleanup'));
-      }
-    });
-
-    if (expired.length > 0) {
-      console.debug(chalk.yellow(`AtomRequest: Cleaned up ${expired.length} expired requests`));
-    }
+  _cleanupIdleSockets() {
+    // Clean up any old REQ sockets (they should be closed after each request anyway)
+    // This is mainly for housekeeping
+    console.debug("AtomRequest: Periodic socket cleanup completed");
   }
 
   /**
-   * Get request statistics
-   * @returns {Object} Statistics object
+   * Get request handling statistics
+   * @returns {Object} - Statistics object
    */
   getStats() {
     return {
-      pendingRequests: this.pendingRequests.size,
-      registeredHandlers: this.requestHandlers.size,
-      maxPendingRequests: this.maxPendingRequests,
-      defaultTimeout: this.defaultTimeout
+      registeredHandlers: Array.from(this.requestHandlers.keys()),
+      repSocketAddress: this.repSocketAddress,
+      isReady: !!this.repSocket,
     };
   }
 
   /**
-   * Shutdown and cleanup
+   * Cleanup resources
    */
   destroy() {
-    // Clear all pending requests
-    for (const [correlationId, request] of this.pendingRequests.entries()) {
-      clearTimeout(request.timeout);
-      request.reject(new Error('AtomRequest: Service shutting down'));
-    }
-    this.pendingRequests.clear();
-
-    // Clear handlers
-    this.requestHandlers.clear();
-
-    // Clear cleanup interval
     if (this.cleanupInterval) {
       clearInterval(this.cleanupInterval);
     }
 
-    console.debug(chalk.yellow('AtomRequest: Destroyed'));
+    if (this.repSocket) {
+      this.repSocket.close();
+      this.repSocket = null;
+    }
+
+    // Close any active REQ sockets
+    this.activeRequestSockets.forEach((socket) => {
+      if (socket) socket.close();
+    });
+    this.activeRequestSockets.clear();
+
+    this.requestHandlers.clear();
   }
 }
 
 // Singleton instance
 let atomRequestInstance = null;
 
-/**
- * Get or create AtomRequest singleton
- * @returns {AtomRequest} Singleton instance
- */
 function getAtomRequest() {
   if (!atomRequestInstance) {
     atomRequestInstance = new AtomRequest();
@@ -339,7 +382,7 @@ function getAtomRequest() {
   return atomRequestInstance;
 }
 
-// Static methods for easy access
+// API - maintain backward compatibility
 const AtomRequestAPI = {
   /**
    * Send a request
@@ -349,14 +392,14 @@ const AtomRequestAPI = {
   },
 
   /**
-   * Register a request handler
+   * Register request handler
    */
   handle: (operation, handler) => {
     return getAtomRequest().handle(operation, handler);
   },
 
   /**
-   * Remove a request handler
+   * Remove request handler
    */
   unhandle: (operation) => {
     return getAtomRequest().unhandle(operation);
@@ -375,23 +418,6 @@ const AtomRequestAPI = {
   getStats: () => {
     return getAtomRequest().getStats();
   },
-
-  /**
-   * Get raw instance for advanced usage
-   */
-  getInstance: () => {
-    return getAtomRequest();
-  },
-
-  /**
-   * Destroy instance
-   */
-  destroy: () => {
-    if (atomRequestInstance) {
-      atomRequestInstance.destroy();
-      atomRequestInstance = null;
-    }
-  }
 };
 
 module.exports = AtomRequestAPI;

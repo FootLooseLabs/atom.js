@@ -896,7 +896,7 @@ AtomCmpInterface.prototype._setupRequestIntegration = function () {
   try {
     const AtomRequest = require("../atom.request/main");
 
-    // Setup request handling on this interface
+    // Setup REP socket for handling incoming requests
     AtomRequest.setupInterface(this);
 
     // Auto-register request handlers from config
@@ -910,6 +910,7 @@ AtomCmpInterface.prototype._setupRequestIntegration = function () {
       }
     }
 
+    console.log(`AtomRequest: Interface setup completed`);
     console.debug(`Info: Request handling enabled for ${this.name}`);
   } catch (error) {
     console.error(
