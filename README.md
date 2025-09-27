@@ -88,21 +88,29 @@ npm install --save github:FootLooseLabs/atom.js#master
 ### Basic Service Setup
 
 ```javascript
-const Atom = require('atom');
+const AtomLexeme = require('atom').Lexeme;
 
 // Define your lexicon (message schemas)
-const lexicon = {
-  "UserCreated": {
+const UserCreated = class extends AtomLexeme {
+  static schema = {
     userId: "",
     email: "",
     timestamp: 0
-  },
-  "OrderProcessed": {
+  };
+};
+
+const OrderProcessed = class extends AtomLexeme {
+  static schema = {
     orderId: "",
     userId: "",
     amount: 0,
     status: ""
-  }
+  };
+};
+
+const lexicon = {
+  "UserCreated": UserCreated,
+  "OrderProcessed": OrderProcessed
 };
 
 // Configure your service interface
@@ -111,7 +119,7 @@ const serviceConfig = {
   config: {
     port: 8050,
     eventsPort: 8051,
-    lexicon: lexicon,
+    lexicon,
     connections: {
       // Define connections to other services
       "UserCreated": "@myapp/notification-service|||user-created<-->OnUserCreated"
@@ -279,8 +287,11 @@ Atom.Signal.subscribeToInterface(
 Define message structures to ensure type safety and API contracts:
 
 ```javascript
-const lexicon = {
-  "UserProfile": {
+const AtomLexeme = require('atom').Lexeme;
+
+// Define message schema classes
+const UserProfile = class extends AtomLexeme {
+  static schema = {
     userId: "",
     name: "",
     email: "",
@@ -289,25 +300,78 @@ const lexicon = {
       theme: "light"
     },
     metadata: {}
-  },
+  };
+};
 
-  "ApiResponse": {
+const ApiResponse = class extends AtomLexeme {
+  static schema = {
     success: true,
     data: {},
     error: null,
     timestamp: 0
-  }
+  };
+};
+
+const lexicon = {
+  "UserProfile": UserProfile,
+  "ApiResponse": ApiResponse
 };
 
 // Usage in service configuration
 const serviceConfig = {
   name: "@myapp/profile-service",
   config: {
-    lexicon: lexicon,
+    lexicon,
     // ... other config
   }
 };
 ```
+
+### Benefits of Using Lexeme Classes
+
+The `Atom.Lexeme` class-based approach provides several advantages over plain JavaScript objects:
+
+```javascript
+const AtomLexeme = require('atom').Lexeme;
+
+const SomeMsgType = class extends AtomLexeme {
+  static schema = {
+    uid: null,
+    message: "",
+    subject: null,
+    object: null,
+    action: null,
+    params: {},
+    vector: {
+      uid: null,
+      vectorSpaceUid: null
+    },
+    sender: null,
+    sessionInfo: {},
+    membershipInfo: {},
+    ts: null,
+  };
+};
+
+// Create and validate message instances
+const messageInstance = SomeMsgType.inflect({
+  uid: "msg-123",
+  message: "Hello World",
+  action: "greet",
+  ts: Date.now()
+});
+
+// Access validated data
+const validatedData = messageInstance.get();
+console.log(validatedData.message); // "Hello World"
+```
+
+**Key Benefits:**
+- **Runtime Validation**: Automatic validation against the defined schema
+- **Type Safety**: Ensures messages conform to expected structure
+- **Instance Methods**: Built-in methods for data access and manipulation
+- **Extensibility**: Can override validation and processing logic in subclasses
+- **Error Handling**: Graceful handling of malformed messages
 
 ## Service Discovery
 
