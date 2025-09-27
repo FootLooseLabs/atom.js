@@ -84,6 +84,7 @@ npm install --save github:FootLooseLabs/atom.js#master
 
 - **Node.js**: Version 12 or higher
 - **Atom-Cli**: Launch atom nucleus with atom -s. (this is required for service discovery)
+  - Install from: https://github.com/footLooseLabs/atom-cli
 
 ### Basic Service Setup
 
