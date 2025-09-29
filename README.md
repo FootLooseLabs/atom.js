@@ -444,9 +444,9 @@ process.on('SIGINT', () => {
 
 ## Development Workflow
 
-### 1. Start Redis
+### 1. Start Atom Nucleus
 ```bash
-redis-server
+atom -s (or sudo atom -s)
 ```
 
 ### 2. Start Services (Any Order)
