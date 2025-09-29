@@ -2,7 +2,7 @@
 
 A simple (not overly abstracted) microservices communication framework built on ZeroMQ, providing seamless inter-process communication with automatic service discovery, message routing, and schema-based message validation.
 
-An architecture for building networked functions - enabling functions across different programs to discover, communicate & invoke each other.
+Think of it as an architecture for building networked functions - enabling functions across different programs to discover, communicate & invoke each other.
 
 ### Key Features
 
