@@ -2,6 +2,8 @@
 
 A simple microservices communication framework built on ZeroMQ, providing seamless inter-process communication with automatic service discovery, message routing, and schema-based message validation.
 
+An architecture for building networked functions - enabling functions across different programs to discover, communicate & invoke each other.
+
 ### Key Features
 
 - **Service Discovery**: Automatic discovery and connection to services via Redis + UDP multicasting
@@ -444,7 +446,7 @@ process.on('SIGINT', () => {
 
 ## Development Workflow
 
-### 1. Start Atom Nucleus
+### 1. Start Atom Nucleus 
 ```bash
 atom -s (or sudo atom -s)
 ```
