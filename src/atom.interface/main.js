@@ -129,9 +129,24 @@ AtomCmpInterface.prototype.__initComponentProps__ = function () {
 
   component._eventEmitter = new events.EventEmitter();
 
-  component.emit = component._eventEmitter.emit;
+  const emitter = component._eventEmitter;
+  // Core API
+  component.on = emitter.on.bind(emitter);
+  component.once = emitter.once.bind(emitter);
+  component.off = emitter.off.bind(emitter);
+  component.emit = emitter.emit.bind(emitter);
 
-  component.on = component._eventEmitter.on;
+  // Legacy aliases
+  component.addListener = emitter.addListener.bind(emitter);
+  component.removeListener = emitter.removeListener.bind(emitter);
+
+  // Bulk ops
+  // component.removeAllListeners = emitter.removeAllListeners.bind(emitter);
+
+  // Introspection
+  // component.listeners = emitter.listeners.bind(emitter);
+  // component.rawListeners = emitter.rawListeners.bind(emitter);
+  // component.listenerCount = emitter.listenerCount.bind(emitter);
 };
 
 AtomCmpInterface.prototype._initialiseSocket = function () {
