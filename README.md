@@ -561,7 +561,7 @@ Error: listen EADDRINUSE :::8050
 
 **Request Timeout**
 ```
-AtomRequest: Request timeout after 10000ms for @myapp/target-service::operation
+AtomRequest: Request timeout after 10000ms for @myapp/target-service:::operation
 ```
 - Check if target service is running and handling requests
 - Increase timeout value in request options

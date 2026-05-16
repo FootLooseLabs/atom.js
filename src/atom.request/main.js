@@ -71,7 +71,7 @@ class AtomRequest extends EventEmitter {
           }
           reject(
             new Error(
-              `AtomRequest: Request timeout after ${timeout}ms for ${targetService}::${operation}`,
+              `AtomRequest: Request timeout after ${timeout}ms for ${targetService}:::${operation}`,
             ),
           );
         }, timeout);
@@ -119,7 +119,7 @@ class AtomRequest extends EventEmitter {
 
         console.debug(
           chalk.blue(
-            `AtomRequest: Sent REQ ${correlationId} to ${targetService}::${operation} at ${targetAddress}`,
+            `AtomRequest: Sent REQ ${correlationId} to ${targetService}:::${operation} at ${targetAddress}`,
           ),
         );
       } catch (error) {

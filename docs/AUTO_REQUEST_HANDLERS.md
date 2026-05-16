@@ -350,7 +350,7 @@ AtomRequest: Auto-generated 2 REQ/REP handlers: [GetUser, CreateUser]
 
 ### Request Logs (per REQ/REP call):
 ```
-AtomRequest: Sent REQ <uuid> to @myapp/user-service::GetUser at tcp://127.0.0.1:8082
+AtomRequest: Sent REQ <uuid> to @myapp/user-service:::GetUser at tcp://127.0.0.1:8082
 AtomRequest: Processing REQ <uuid> for operation 'GetUser'
 Component function called with: { userId: '123', sender: '@caller/service' }
 AtomRequest: Sent response for <uuid>
